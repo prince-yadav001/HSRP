@@ -16,7 +16,8 @@ import {
   MessageSquare,
   FileImage,
   CreditCard,
-  Edit
+  Edit,
+  Loader2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +34,9 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { db } from "@/lib/firebase";
+import { collection, query, getDocs, doc, updateDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -64,28 +68,61 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("orders");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Load bookings from localStorage on component mount
-    try {
-      const storedBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      setBookings(storedBookings.reverse()); // Show newest first
-    } catch (error) {
-      console.error("Could not load bookings from localStorage", error);
-      setBookings([]);
-    }
-  }, []);
+    const fetchBookings = async () => {
+      setIsLoading(true);
+      try {
+        const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        const bookingsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate().toISOString() // Convert timestamp
+        }));
+        setBookings(bookingsData);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch bookings from the database.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleStatusChange = (bookingId: string, newStatus: string) => {
+    fetchBookings();
+  }, [toast]);
+
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    const originalBookings = [...bookings];
     const updatedBookings = bookings.map(b => 
-      b.id === bookingId ? { ...b, status: newStatus, updatedAt: new Date().toISOString() } : b
+      b.id === bookingId ? { ...b, status: newStatus } : b
     );
     setBookings(updatedBookings);
+
     try {
-      // We need to reverse it back for storing to keep the order consistent
-      localStorage.setItem('bookings', JSON.stringify(updatedBookings.reverse()));
+      const bookingRef = doc(db, "bookings", bookingId);
+      await updateDoc(bookingRef, {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      toast({
+        title: "Success",
+        description: "Order status updated successfully."
+      });
     } catch (error) {
-      console.error("Could not save updated bookings to localStorage", error);
+      console.error("Error updating status:", error);
+      setBookings(originalBookings); // Revert on error
+      toast({
+        title: "Error",
+        description: "Failed to update order status.",
+        variant: "destructive"
+      });
     }
   };
   
@@ -105,6 +142,16 @@ export default function AdminDashboard() {
       delivered: "bg-green-100 text-green-800"
     };
     return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const formatTimestamp = (timestamp: any) => {
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toLocaleDateString('en-IN');
+    }
+    if (timestamp) {
+      return new Date(timestamp).toLocaleDateString('en-IN');
+    }
+    return 'N/A';
   };
 
   return (
@@ -198,6 +245,11 @@ export default function AdminDashboard() {
                 <CardTitle>All Orders</CardTitle>
               </CardHeader>
               <CardContent>
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -240,7 +292,7 @@ export default function AdminDashboard() {
                               </Select>
                             </div>
                           </td>
-                          <td className="p-2">{new Date(booking.createdAt).toLocaleDateString()}</td>
+                           <td className="p-2">{formatTimestamp(booking.createdAt)}</td>
                           <td className="p-2">
                             <div className="flex gap-2">
                               <Dialog>
@@ -280,21 +332,21 @@ export default function AdminDashboard() {
                                         <h3 className="font-semibold mb-3">Payment Proof</h3>
                                         {selectedBooking.paymentProof ? (
                                           <div className="border rounded-lg p-4">
-                                            <img
-                                              src={selectedBooking.paymentProof}
-                                              alt="Payment Proof"
-                                              className="max-w-full h-auto rounded"
-                                            />
-                                            <div className="mt-2 text-center">
-                                              <a
+                                            <a
                                                 href={selectedBooking.paymentProof}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-blue-600 hover:underline"
                                               >
-                                                View Full Size
-                                              </a>
-                                            </div>
+                                                <img
+                                                  src={selectedBooking.paymentProof}
+                                                  alt="Payment Proof"
+                                                  className="max-w-full h-auto rounded"
+                                                />
+                                                <div className="mt-2 text-center">
+                                                    View Full Size
+                                                </div>
+                                             </a>
                                           </div>
                                         ) : (
                                           <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
@@ -307,27 +359,7 @@ export default function AdminDashboard() {
                                   )}
                                 </DialogContent>
                               </Dialog>
-                              {booking.paymentProof && (
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" title="View Payment Proof">
-                                      <CreditCard className="w-4 h-4" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                      <DialogTitle>Payment Proof - {booking.orderId}</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="text-center">
-                                      <img
-                                        src={booking.paymentProof}
-                                        alt="Payment Proof"
-                                        className="max-w-full h-auto rounded border"
-                                      />
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              )}
+                              
                               <Button size="sm" variant="outline">
                                 <QrCode className="w-4 h-4" />
                               </Button>
@@ -338,6 +370,7 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -415,5 +448,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-    

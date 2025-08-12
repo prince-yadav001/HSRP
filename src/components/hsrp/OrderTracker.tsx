@@ -9,10 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Search } from "lucide-react";
 import OrderDetails from "./OrderDetails";
 import ProgressTracker from "./ProgressTracker";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 
 interface OrderStatus {
   orderId: string;
   status: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
   [key: string]: any;
 }
 
@@ -31,7 +35,7 @@ const OrderTrackerContent = () => {
     }
   }, [searchParams]);
 
-  const trackOrder = (id: string) => {
+  const trackOrder = async (id: string) => {
     if (!id.trim()) {
       setError("Please enter a valid Order ID.");
       return;
@@ -40,22 +44,22 @@ const OrderTrackerContent = () => {
     setIsLoading(true);
     setBooking(null);
 
-    setTimeout(() => {
-      try {
-        const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        const foundBooking = allBookings.find((b: any) => b.orderId === id.trim());
-        
-        if (foundBooking) {
-          setBooking(foundBooking);
-        } else {
-          setError("Order ID not found. Please check the ID and try again.");
-        }
-      } catch (error) {
-        console.error("Could not load bookings from localStorage", error);
-        setError("An error occurred while fetching your order.");
+    try {
+      const q = query(collection(db, "bookings"), where("orderId", "==", id.trim()));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const foundBooking = querySnapshot.docs[0].data() as OrderStatus;
+        setBooking(foundBooking);
+      } else {
+        setError("Order ID not found. Please check the ID and try again.");
       }
+    } catch (error) {
+      console.error("Error fetching order:", error);
+      setError("An error occurred while fetching your order.");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
   
   const handleTrackOrder = (e: React.FormEvent) => {

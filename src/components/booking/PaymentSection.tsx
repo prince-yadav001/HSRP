@@ -6,11 +6,14 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Check } from "lucide-react";
+import { Upload, Check, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
 import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
+import { db, storage } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 interface PaymentSectionProps {
   onPrevious: () => void;
@@ -46,7 +49,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
     }
   };
 
-  const handleCompleteBooking = () => {
+  const handleCompleteBooking = async () => {
     if (!paymentProof) {
       toast({
         title: "Payment proof required",
@@ -58,33 +61,39 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
 
     setIsPending(true);
 
-    // Simulate API call and save to localStorage
-    setTimeout(() => {
-        const newOrderId = `HSRP-${Date.now()}`;
-        const newBooking = {
-            id: newOrderId,
-            orderId: newOrderId,
-            ...bookingData,
-            vehicleCategory: selectedCategory,
-            amount: totalAmount,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            paymentProof: 'https://placehold.co/400x300.png', // Placeholder for now
-        };
+    try {
+      // 1. Upload payment proof to Firebase Storage
+      const storageRef = ref(storage, `payment_proofs/${Date.now()}_${paymentProof.name}`);
+      const uploadResult = await uploadBytes(storageRef, paymentProof);
+      const paymentProofUrl = await getDownloadURL(uploadResult.ref);
 
-        // Save to localStorage
-        try {
-            const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-            localStorage.setItem('bookings', JSON.stringify([...existingBookings, newBooking]));
-        } catch (error) {
-            console.error("Could not save booking to localStorage", error);
-        }
-        
-        setOrderId(newOrderId);
-        setShowSuccess(true);
-        setIsPending(false);
-    }, 1500)
+      // 2. Save booking data to Firestore
+      const newOrderId = `HSRP-${Date.now()}`;
+      const newBooking = {
+        orderId: newOrderId,
+        ...bookingData,
+        vehicleCategory: selectedCategory,
+        amount: totalAmount,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        paymentProof: paymentProofUrl,
+      };
+
+      const docRef = await addDoc(collection(db, "bookings"), newBooking);
+      
+      setOrderId(newOrderId); // Use the generated one, not from Firestore doc id
+      setShowSuccess(true);
+    } catch (error) {
+      console.error("Booking failed:", error);
+      toast({
+        title: "Booking Failed",
+        description: "There was an error submitting your booking. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   if (showSuccess) {
@@ -214,7 +223,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
             disabled={isPending}
             className="bg-green-500 hover:bg-green-600"
           >
-            <Check className="mr-2" size={16} />
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2" size={16} />}
             {isPending ? "Processing..." : "Complete Booking"}
           </Button>
         </div>

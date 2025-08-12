@@ -34,6 +34,16 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function OrderDetails({ booking }: OrderDetailsProps) {
+    const formatDate = (timestamp: any) => {
+        if (timestamp && typeof timestamp.toDate === 'function') {
+          return timestamp.toDate().toLocaleDateString('en-IN');
+        }
+        if (timestamp) {
+            return new Date(timestamp).toLocaleDateString('en-IN');
+        }
+        return 'N/A';
+    };
+
   return (
     <Card className="mb-8 border">
       <CardHeader>
@@ -61,7 +71,7 @@ export default function OrderDetails({ booking }: OrderDetailsProps) {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Order Date:</span>
                 <span className="font-semibold">
-                  {new Date(booking.createdAt).toLocaleDateString('en-IN')}
+                  {formatDate(booking.createdAt)}
                 </span>
               </div>
               <div className="flex justify-between">

@@ -59,7 +59,14 @@ const getStatusIndex = (status: string) => {
 export default function ProgressTracker({ booking }: ProgressTrackerProps) {
   const currentStatusIndex = getStatusIndex(booking.status);
 
-  const orderDate = new Date(booking.createdAt);
+  const getOrderDate = (timestamp: any) => {
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
+    }
+    return new Date(timestamp || Date.now());
+  }
+
+  const orderDate = getOrderDate(booking.createdAt);
   const estimatedDeliveryStart = new Date(orderDate);
   estimatedDeliveryStart.setDate(orderDate.getDate() + 7);
   const estimatedDeliveryEnd = new Date(orderDate);
@@ -111,7 +118,7 @@ export default function ProgressTracker({ booking }: ProgressTrackerProps) {
                   {isCompleted && (
                     <p className="text-xs text-muted-foreground/80">
                       {isCurrent 
-                        ? `Updated: ${new Date(booking.updatedAt).toLocaleString('en-IN')}`
+                        ? `Updated: ${getOrderDate(booking.updatedAt).toLocaleString('en-IN')}`
                         : 'Completed'
                       }
                     </p>
