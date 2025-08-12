@@ -46,7 +46,7 @@ export async function createBooking(input: z.infer<typeof CreateBookingInputSche
 }
 
 const UpdateBookingWithPaymentInputSchema = z.object({
-    paymentProofUrl: z.string().url(),
+    paymentProofUrl: z.string(),
     orderId: z.string(),
     bookingId: z.string(),
     totalAmount: z.number(),
@@ -97,3 +97,4 @@ export async function updateBookingWithPayment(input: z.infer<typeof UpdateBooki
         return { success: false, error: `Failed to update booking. ${errorMessage}` };
     }
 }
+
