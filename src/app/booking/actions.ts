@@ -10,59 +10,6 @@ import { addDoc, collection, serverTimestamp, updateDoc, doc, query, where, getD
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { z } from "zod";
 
-const ActionInputSchema = z.object({
-  paymentProofUrl: z.string().url(),
-  expectedAmount: z.number(),
-  orderId: z.string(),
-});
-
-export async function handlePaymentVerification(
-  input: z.infer<typeof ActionInputSchema>
-) {
-  try {
-    console.log("Starting AI Verification for order:", input.orderId);
-    const validatedInput = ActionInputSchema.parse(input);
-    
-    // The AI flow expects a data URI, but we now have a URL.
-    // For this flow, we will pass the URL and adjust the prompt if needed,
-    // or ideally, the AI should be able to handle a URL.
-    // Let's assume the current AI flow can't handle a public URL directly
-    // and requires the image data. We'll pass a placeholder or decide how to proceed.
-    // For now, let's just log and update status, bypassing the AI call until it's adapted.
-
-    // A more robust solution would be to read the image from the URL on the server,
-    // convert it to a data URI, and then pass it to the AI. But that's more complex.
-    // Let's simulate the AI verification for now.
-    
-    const q = query(collection(db, "bookings"), where("orderId", "==", input.orderId));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-        const docRef = querySnapshot.docs[0].ref;
-        // Simulate successful verification for now
-        await updateDoc(docRef, { 
-            status: "payment_verified", 
-            updatedAt: serverTimestamp(),
-            verificationReason: "Payment proof uploaded. Awaiting manual verification.",
-            paymentProof: validatedInput.paymentProofUrl,
-        });
-        console.log(`Status updated for ${input.orderId}`);
-        return { success: true };
-    } else {
-        console.log(`Order ${input.orderId} not found in database.`);
-        return { success: false, error: "Order not found." };
-    }
-
-  } catch (error) {
-    console.error("Verification background process failed:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred.";
-    return {
-      success: false,
-      error: `An unexpected error occurred during verification. ${errorMessage}`,
-    };
-  }
-}
 
 const CreateBookingInputSchema = z.object({
   bookingData: z.any(),
@@ -112,15 +59,35 @@ export async function updateBookingWithPayment(input: z.infer<typeof UpdateBooki
         const bookingDocRef = doc(db, "bookings", bookingId);
         await updateDoc(bookingDocRef, {
             paymentProof: paymentProofUrl,
-            status: 'payment_verified', // Simplified: marking as verified upon upload
+            status: 'payment_pending_verification',
             verificationReason: 'Payment proof uploaded. Awaiting AI verification.',
             updatedAt: serverTimestamp(),
         });
 
-        // The AI verification can be triggered here as a non-blocking call.
-        // For simplicity, we are just updating the status directly.
-        // In a real scenario, you'd trigger a background job or a cloud function.
-        // handlePaymentVerification({ paymentProofUrl, expectedAmount: totalAmount, orderId });
+        // Trigger AI verification in the background (fire and forget)
+        // Note: In a production app, this would ideally be a separate, resumable task queue.
+        verifyPaymentProof({
+            paymentProofDataUri: paymentProofUrl,
+            expectedAmount: totalAmount,
+            orderId: orderId,
+        }).then(async (verificationResult) => {
+            const finalStatus = verificationResult.isVerified ? "payment_verified" : "payment_rejected";
+            await updateDoc(bookingDocRef, {
+                status: finalStatus,
+                verificationReason: verificationResult.reason,
+                updatedAt: serverTimestamp(),
+            });
+            console.log(`AI verification completed for order ${orderId}. Status: ${finalStatus}`);
+        }).catch(aiError => {
+            console.error(`AI verification failed for order ${orderId}:`, aiError);
+            // Optionally update the status to indicate a failure in verification
+            updateDoc(bookingDocRef, {
+                status: 'payment_verification_failed',
+                verificationReason: 'The AI verification process encountered an error.',
+                updatedAt: serverTimestamp(),
+            });
+        });
+
 
         return { success: true };
 

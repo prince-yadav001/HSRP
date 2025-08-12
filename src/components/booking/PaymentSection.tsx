@@ -82,13 +82,15 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
       
       const newOrderId = bookingResult.orderId;
       const newBookingId = bookingResult.bookingId;
+      setOrderId(newOrderId); // Set orderId for success screen
 
       // Step 2: Upload file directly to Firebase Storage from client
-      const storageRef = ref(storage, `payment_proofs/${newOrderId}.png`);
+      // The file name is based on the bookingId to ensure uniqueness
+      const storageRef = ref(storage, `payment_proofs/${newBookingId}_${paymentProofFile.name}`);
       const uploadResult = await uploadBytes(storageRef, paymentProofFile);
       const paymentProofUrl = await getDownloadURL(uploadResult.ref);
 
-      // Step 3: Update the booking with the payment proof URL
+      // Step 3: Update the booking with the payment proof URL and trigger AI verification
       const updateResult = await updateBookingWithPayment({
           paymentProofUrl,
           orderId: newOrderId,
@@ -99,8 +101,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
       if (!updateResult.success) {
           throw new Error(updateResult.error || "Failed to update booking with payment proof.");
       }
-
-      setOrderId(newOrderId);
+      
       setShowSuccess(true); 
 
     } catch (error) {
@@ -137,7 +138,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           </div>
           <div className="space-x-4">
             <Button asChild>
-              <Link href={`/tracking?orderId=${orderId}`}>Track Order</Link>
+              <Link href={`/tracking?mobile=${bookingData.ownerMobile}`}>Track Order</Link>
             </Button>
             <Button
               variant="outline"

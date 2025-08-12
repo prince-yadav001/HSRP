@@ -15,7 +15,7 @@ const VerifyPaymentProofInputSchema = z.object({
   paymentProofDataUri: z
     .string()
     .describe(
-      "The payment proof image as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The payment proof image, which can be a public URL or a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   expectedAmount: z.number().describe('The expected payment amount.'),
   orderId: z.string().describe('The ID of the order associated with the payment.'),
@@ -40,13 +40,16 @@ const prompt = ai.definePrompt({
 
 You will analyze the provided payment proof image and determine if it is a valid proof of payment for the specified amount and order.
 
-Consider the following factors:
-- Clarity and legibility of the image
-- Presence of key information such as amount paid, date, and transaction ID
-- Consistency of the information with the expected amount and order ID
-- Any signs of tampering or fraud
+The user has paid {{expectedAmount}}. Look for this amount in the proof.
+The Order ID is {{orderId}}. This may or may not be present in the proof.
 
-Based on your analysis, set the isVerified output field to true if the payment proof is valid, and false otherwise. Provide a detailed reason for your decision in the reason output field.
+Consider the following factors:
+- Clarity and legibility of the image.
+- Presence of key information such as amount paid, date, and transaction ID.
+- Consistency of the information with the expected amount.
+- Any obvious signs of tampering or fraud.
+
+Based on your analysis, set the isVerified output field to true if the payment proof is valid, and false otherwise. Provide a detailed reason for your decision in the reason output field. If you approve, the reason should be "Payment confirmed via AI.". If you reject, explain why (e.g., "Amount does not match expected value.", "Image is blurry.").
 
 Payment Proof Image: {{media url=paymentProofDataUri}}
 Expected Amount: {{{expectedAmount}}}
@@ -60,7 +63,24 @@ const verifyPaymentProofFlow = ai.defineFlow(
     outputSchema: VerifyPaymentProofOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    // Add a small delay to simulate processing, as local verification can be too fast.
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        return {
+          isVerified: false,
+          reason: 'AI model did not return a valid response.'
+        }
+      }
+      return output;
+    } catch (e) {
+       console.error("AI verification flow failed", e);
+       return {
+         isVerified: false,
+         reason: 'An error occurred during AI processing.'
+       }
+    }
   }
 );
