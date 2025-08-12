@@ -6,13 +6,15 @@ import { useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Phone, ChevronRight, List } from "lucide-react";
 import OrderDetails from "./OrderDetails";
 import ProgressTracker from "./ProgressTracker";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp, orderBy } from "firebase/firestore";
+import { Badge } from "../ui/badge";
 
-interface OrderStatus {
+interface Order {
+  id: string;
   orderId: string;
   status: string;
   createdAt: Timestamp;
@@ -20,43 +22,62 @@ interface OrderStatus {
   [key: string]: any;
 }
 
+const getStatusLabel = (status: string) => {
+    const labels: { [key: string]: string } = {
+      pending: "Pending",
+      payment_verified: "Payment Verified",
+      in_production: "In Production",
+      quality_check: "Quality Check",
+      ready_for_dispatch: "Ready for Dispatch",
+      out_for_delivery: "Out for Delivery",
+      delivered: "Delivered"
+    };
+    return labels[status] || status;
+  };
+
 const OrderTrackerContent = () => {
   const searchParams = useSearchParams();
-  const [orderId, setOrderId] = useState("");
-  const [booking, setBooking] = useState<OrderStatus | null>(null);
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [bookings, setBookings] = useState<Order[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const urlOrderId = searchParams.get('orderId');
-    if (urlOrderId) {
-      setOrderId(urlOrderId);
-      trackOrder(urlOrderId);
+    const urlMobile = searchParams.get('mobile');
+    if (urlMobile) {
+      setMobileNumber(urlMobile);
+      trackOrdersByMobile(urlMobile);
     }
   }, [searchParams]);
 
-  const trackOrder = async (id: string) => {
-    if (!id.trim()) {
-      setError("Please enter a valid Order ID.");
+  const trackOrdersByMobile = async (mobile: string) => {
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+      setError("Please enter a valid 10-digit mobile number.");
       return;
     }
     setError(null);
     setIsLoading(true);
-    setBooking(null);
+    setBookings([]);
+    setSelectedBooking(null);
 
     try {
-      const q = query(collection(db, "bookings"), where("orderId", "==", id.trim()));
+      const q = query(
+        collection(db, "bookings"), 
+        where("ownerMobile", "==", mobile.trim()),
+        orderBy("createdAt", "desc")
+      );
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        const foundBooking = querySnapshot.docs[0].data() as OrderStatus;
-        setBooking(foundBooking);
+        const foundBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+        setBookings(foundBookings);
       } else {
-        setError("Order ID not found. Please check the ID and try again.");
+        setError("No orders found for this mobile number. Please check the number and try again.");
       }
     } catch (error) {
-      console.error("Error fetching order:", error);
-      setError("An error occurred while fetching your order.");
+      console.error("Error fetching orders:", error);
+      setError("An error occurred while fetching your orders.");
     } finally {
       setIsLoading(false);
     }
@@ -64,27 +85,38 @@ const OrderTrackerContent = () => {
   
   const handleTrackOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    trackOrder(orderId);
+    trackOrdersByMobile(mobileNumber);
   };
 
+  const handleSelectBooking = (booking: Order) => {
+    if (selectedBooking?.id === booking.id) {
+        setSelectedBooking(null); // Allow deselecting
+    } else {
+        setSelectedBooking(booking);
+    }
+  }
 
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle className="font-headline">Enter Order ID</CardTitle>
+        <CardTitle className="font-headline">Enter Mobile Number</CardTitle>
         <CardDescription>
-          Your Order ID was provided upon booking confirmation.
+          Track all your orders using your registered mobile number.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleTrackOrder} className="flex items-center gap-2 max-w-md mx-auto">
-          <Input
-            type="text"
-            placeholder="e.g., HSRP-123456789"
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            className="flex-grow"
-          />
+          <div className="relative flex-grow">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="tel"
+              placeholder="10-digit mobile number"
+              value={mobileNumber}
+              onChange={(e) => setMobileNumber(e.target.value)}
+              className="pl-10"
+              maxLength={10}
+            />
+          </div>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -97,16 +129,43 @@ const OrderTrackerContent = () => {
 
         {error && <p className="mt-4 text-center text-sm text-destructive">{error}</p>}
         
-        {booking && (
-          <div className="mt-8 grid md:grid-cols-2 gap-8">
-            <div>
-              <OrderDetails booking={booking} />
+        {bookings.length > 0 && (
+            <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4 flex items-center"><List className="mr-2 h-5 w-5" /> Your Orders ({bookings.length})</h3>
+                <div className="border rounded-md">
+                    {bookings.map(booking => (
+                        <div key={booking.id} className="border-b last:border-b-0">
+                             <div 
+                                className="flex justify-between items-center p-4 cursor-pointer hover:bg-muted/50"
+                                onClick={() => handleSelectBooking(booking)}
+                            >
+                                <div>
+                                    <p className="font-semibold">{booking.orderId}</p>
+                                    <p className="text-sm text-muted-foreground">{booking.vehicleRegistrationNumber}</p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                     <Badge variant={booking.status === 'delivered' ? 'default' : 'secondary'}>{getStatusLabel(booking.status)}</Badge>
+                                    <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${selectedBooking?.id === booking.id ? 'rotate-90' : ''}`} />
+                                </div>
+                            </div>
+                            {selectedBooking?.id === booking.id && (
+                                 <div className="p-4 bg-muted/20 border-t">
+                                     <div className="grid md:grid-cols-2 gap-8">
+                                        <div>
+                                            <OrderDetails booking={selectedBooking} />
+                                        </div>
+                                        <div>
+                                            <ProgressTracker booking={selectedBooking} />
+                                        </div>
+                                    </div>
+                                 </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
-            <div>
-              <ProgressTracker booking={booking} />
-            </div>
-          </div>
         )}
+
       </CardContent>
     </Card>
   )
