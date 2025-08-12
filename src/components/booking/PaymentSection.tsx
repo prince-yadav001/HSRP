@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
 import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
-import { createBookingAndVerifyPayment } from "@/app/booking/actions";
+import { createBooking, handlePaymentUploadAndVerification } from "@/app/booking/actions";
 
 interface PaymentSectionProps {
   onPrevious: () => void;
@@ -70,25 +70,41 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
     setIsPending(true);
 
     try {
-      const paymentProofDataUri = await toDataURL(paymentProofFile);
-
-      const result = await createBookingAndVerifyPayment({
+      // Step 1: Create the booking document to get an ID
+      const bookingResult = await createBooking({
         bookingData,
         selectedCategory,
         totalAmount,
-        paymentProofDataUri,
       });
 
-      if (result.success && result.orderId) {
-        setOrderId(result.orderId);
-        setShowSuccess(true);
-      } else {
+      if (!bookingResult.success || !bookingResult.orderId || !bookingResult.bookingId) {
         toast({
           title: "Booking Failed",
-          description: result.error || "An unknown error occurred.",
+          description: bookingResult.error || "Could not create booking record.",
           variant: "destructive",
         });
+        setIsPending(false);
+        return;
       }
+
+      setOrderId(bookingResult.orderId);
+      setShowSuccess(true); // Show success UI immediately
+
+      // Step 2: Handle file upload and AI verification in the background
+      const paymentProofDataUri = await toDataURL(paymentProofFile);
+      handlePaymentUploadAndVerification({
+          paymentProofDataUri,
+          totalAmount,
+          orderId: bookingResult.orderId,
+          bookingId: bookingResult.bookingId
+      }).then(uploadResult => {
+          if(!uploadResult.success) {
+              console.error("Background upload failed:", uploadResult.error);
+              // Optional: You could use a websocket or other mechanism to notify
+              // the user of this background failure, but for now we just log it.
+          }
+      });
+
     } catch (error) {
       console.error("Booking failed:", error);
       toast({
@@ -96,6 +112,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
         description: "There was an error submitting your booking. Please try again.",
         variant: "destructive"
       });
+      setShowSuccess(false); // Hide success UI if it failed
     } finally {
       setIsPending(false);
     }

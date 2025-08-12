@@ -69,17 +69,13 @@ const CreateBookingInputSchema = z.object({
   bookingData: z.any(),
   selectedCategory: z.string(),
   totalAmount: z.number(),
-  paymentProofDataUri: z.string(),
 });
 
-export async function createBookingAndVerifyPayment(input: z.infer<typeof CreateBookingInputSchema>) {
-  const { bookingData, selectedCategory, totalAmount, paymentProofDataUri } =
-    CreateBookingInputSchema.parse(input);
 
+export async function createBooking(input: z.infer<typeof CreateBookingInputSchema>) {
+  const { bookingData, selectedCategory, totalAmount } = CreateBookingInputSchema.parse(input);
   const newOrderId = `HSRP-${Date.now()}`;
-
   try {
-    // 1. Save booking data to Firestore immediately
     const newBooking = {
       orderId: newOrderId,
       ...bookingData,
@@ -88,56 +84,69 @@ export async function createBookingAndVerifyPayment(input: z.infer<typeof Create
       status: 'pending',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      paymentProof: '', 
-      verificationReason: 'Awaiting AI verification'
+      paymentProof: '',
+      verificationReason: 'Awaiting payment proof upload.'
     };
-
     const docRef = await addDoc(collection(db, "bookings"), newBooking);
+    return { success: true, orderId: newOrderId, bookingId: docRef.id };
+  } catch (error) {
+     console.error("Booking creation failed:", error);
+     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+     return {
+       success: false,
+       error: `An unexpected error occurred during booking creation. ${errorMessage}`,
+     };
+  }
+}
 
-    // 2. Start background tasks: upload payment proof and trigger AI verification
-    const uploadAndUpdate = async () => {
-      try {
-        const storageRef = ref(storage, `payment_proofs/${newOrderId}.png`);
+const UploadVerificationInputSchema = z.object({
+    paymentProofDataUri: z.string(),
+    totalAmount: z.number(),
+    orderId: z.string(),
+    bookingId: z.string()
+});
+
+export async function handlePaymentUploadAndVerification(input: z.infer<typeof UploadVerificationInputSchema>) {
+    const { paymentProofDataUri, totalAmount, orderId, bookingId } = UploadVerificationInputSchema.parse(input);
+    try {
+        const storageRef = ref(storage, `payment_proofs/${orderId}.png`);
         const uploadResult = await uploadString(storageRef, paymentProofDataUri, 'data_url');
         const paymentProofUrl = await getDownloadURL(uploadResult.ref);
 
-        // Update the document with the storage URL
-        const bookingDocRef = doc(db, "bookings", docRef.id);
+        const bookingDocRef = doc(db, "bookings", bookingId);
         await updateDoc(bookingDocRef, {
             paymentProof: paymentProofUrl,
             updatedAt: serverTimestamp(),
+            verificationReason: 'Awaiting AI verification'
         });
-        
-        // 3. Trigger AI verification in the background
+
+        // This can still be fire-and-forget as it doesn't block the main thread
+        // of this server action, and the action itself is short-lived.
         handlePaymentVerification({
-          paymentProofDataUri,
-          expectedAmount: totalAmount,
-          orderId: newOrderId,
+            paymentProofDataUri,
+            expectedAmount: totalAmount,
+            orderId: orderId,
         });
 
-      } catch (uploadError) {
-        console.error("Error during background upload/verification:", uploadError);
-        // Optionally, update the booking status to indicate an error
-        const bookingDocRef = doc(db, "bookings", docRef.id);
-        await updateDoc(bookingDocRef, {
-            status: "upload_failed",
-            verificationReason: "Failed to upload or verify payment proof.",
-            updatedAt: serverTimestamp(),
-        });
-      }
-    };
-    
-    uploadAndUpdate(); // Fire and forget, don't await
+        return { success: true };
 
-    return { success: true, orderId: newOrderId };
-
-  } catch (error) {
-    console.error("Booking creation failed:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred.";
-    return {
-      success: false,
-      error: `An unexpected error occurred during booking creation. ${errorMessage}`,
-    };
-  }
+    } catch (uploadError) {
+        console.error("Error during upload/verification:", uploadError);
+        try {
+            const bookingDocRef = doc(db, "bookings", bookingId);
+            await updateDoc(bookingDocRef, {
+                status: "upload_failed",
+                verificationReason: "Failed to upload or verify payment proof.",
+                updatedAt: serverTimestamp(),
+            });
+        } catch(docError) {
+            console.error("Error updating document status to failed:", docError);
+        }
+        
+        const errorMessage = uploadError instanceof Error ? uploadError.message : "An unknown error occurred.";
+        return {
+          success: false,
+          error: `Failed to upload payment proof. ${errorMessage}`,
+        };
+    }
 }
