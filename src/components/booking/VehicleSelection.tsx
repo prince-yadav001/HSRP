@@ -58,15 +58,15 @@ export default function VehicleSelection({ selectedCategory, onSelect }: Vehicle
               key={category.id}
               className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
                 selectedCategory === category.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-500'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary'
               }`}
               onClick={() => onSelect(category.id)}
             >
               <div className="text-center">
-                <category.icon className="text-3xl text-blue-600 mb-3 mx-auto" size={48} />
+                <category.icon className="text-3xl text-primary mb-3 mx-auto" size={48} />
                 <h3 className="font-semibold">{category.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{category.description}</p>
                 <p className="text-sm text-green-600 font-semibold mt-2">{category.price}</p>
               </div>
             </div>

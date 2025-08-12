@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -8,44 +9,78 @@ import {
   Truck,
   Home,
   type LucideIcon,
+  Cog,
+  Check,
+  Search,
+  FlagIcon
 } from "lucide-react";
 import { ORDER_STATUSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface OrderStatusTimelineProps {
-  history: {
-    status: string;
-    date: string;
-  }[];
   currentStatus: string;
 }
 
-const iconMap: { [key: string]: LucideIcon } = {
-  "Payment Verified": CreditCard,
-  "In Production": Factory,
-  "Quality Check": ShieldCheck,
-  "Ready for Dispatch": Package,
-  "Out for Delivery": Truck,
-  Delivered: Home,
+const statusSteps = [
+  {
+    key: "pending",
+    title: "Order Received",
+    icon: Check
+  },
+  {
+    key: "payment_verified", 
+    title: "Payment Verified",
+    icon: CreditCard
+  },
+  {
+    key: "in_production",
+    title: "In Production", 
+    icon: Cog
+  },
+  {
+    key: "quality_check",
+    title: "Quality Check",
+    icon: Search
+  },
+  {
+    key: "ready_for_dispatch",
+    title: "Ready for Dispatch",
+    icon: Package
+  },
+  {
+    key: "out_for_delivery",
+    title: "Out for Delivery",
+    icon: Truck
+  },
+  {
+    key: "delivered",
+    title: "Delivered",
+    icon: FlagIcon
+  }
+];
+
+const getStatusIndex = (status: string) => {
+    const option = ORDER_STATUSES.find(s => s.name.toLowerCase().replace(/ /g, '_') === status);
+    if (option) {
+        return ORDER_STATUSES.indexOf(option);
+    }
+    return -1;
 };
 
-export default function OrderStatusTimeline({ history, currentStatus }: OrderStatusTimelineProps) {
-  const currentStatusIndex = ORDER_STATUSES.findIndex(
-    (s) => s.name === currentStatus
-  );
+export default function OrderStatusTimeline({ currentStatus }: OrderStatusTimelineProps) {
+  const currentStatusIndex = getStatusIndex(currentStatus);
 
   return (
     <div className="relative">
       {ORDER_STATUSES.map((status, index) => {
         const isCompleted = index < currentStatusIndex;
         const isCurrent = index === currentStatusIndex;
-        const historyEntry = history.find(h => h.status === status.name);
+        const step = statusSteps.find(s => s.title === status.name);
 
-        const Icon = iconMap[status.name] || Package;
+        const Icon = step?.icon || Package;
 
         return (
           <div key={status.name} className="flex items-start gap-4 md:gap-6 relative">
-            {/* Timeline line */}
             {index < ORDER_STATUSES.length - 1 && (
                  <div className={cn(
                     "absolute top-5 left-[18px] w-0.5 h-full -translate-x-1/2 bg-border",
@@ -53,7 +88,6 @@ export default function OrderStatusTimeline({ history, currentStatus }: OrderSta
                   )}></div>
             )}
             
-            {/* Icon circle */}
             <div className={cn(
                 "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2",
                 isCompleted || isCurrent
@@ -63,7 +97,6 @@ export default function OrderStatusTimeline({ history, currentStatus }: OrderSta
               <Icon className="h-5 w-5" />
             </div>
 
-            {/* Status details */}
             <div className="pb-8 pt-1.5">
               <p
                 className={cn(
@@ -73,13 +106,6 @@ export default function OrderStatusTimeline({ history, currentStatus }: OrderSta
               >
                 {status.name}
               </p>
-              {historyEntry ? (
-                 <p className="text-sm text-muted-foreground">
-                    {new Date(historyEntry.date).toLocaleString()}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">Pending</p>
-              )}
             </div>
           </div>
         );

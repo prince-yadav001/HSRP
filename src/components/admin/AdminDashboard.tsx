@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -107,57 +106,57 @@ export default function AdminDashboard() {
     <div>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="border border-gov-border">
+        <Card className="border">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <ClipboardList className="text-gov-blue text-xl" size={24} />
+                <ClipboardList className="text-primary text-xl" size={24} />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-600">Total Orders</h3>
-                <p className="text-2xl font-bold text-gov-text">{totalOrders}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Total Orders</h3>
+                <p className="text-2xl font-bold">{totalOrders}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-gov-border">
+        <Card className="border">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                 <Clock className="text-yellow-600 text-xl" size={24} />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-600">Pending</h3>
-                <p className="text-2xl font-bold text-gov-text">{pendingOrders}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Pending</h3>
+                <p className="text-2xl font-bold">{pendingOrders}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-gov-border">
+        <Card className="border">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="text-gov-success text-xl" size={24} />
+                <CheckCircle className="text-green-600 text-xl" size={24} />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-600">Completed</h3>
-                <p className="text-2xl font-bold text-gov-text">{completedOrders}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Completed</h3>
+                <p className="text-2xl font-bold">{completedOrders}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-gov-border">
+        <Card className="border">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <IndianRupee className="text-gov-green text-xl" size={24} />
+                <IndianRupee className="text-green-600 text-xl" size={24} />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-600">Revenue</h3>
-                <p className="text-2xl font-bold text-gov-text">₹{(totalRevenue / 1000).toFixed(1)}K</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Revenue</h3>
+                <p className="text-2xl font-bold">₹{(totalRevenue / 1000).toFixed(1)}K</p>
               </div>
             </div>
           </CardContent>
@@ -165,9 +164,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* Admin Tabs */}
-      <Card className="border border-gov-border">
+      <Card className="border">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="border-b border-gray-200">
+          <div className="border-b">
             <TabsList className="grid grid-cols-4 w-full">
               <TabsTrigger value="orders" className="flex items-center">
                 <ClipboardList className="mr-2" size={16} />
@@ -189,7 +188,7 @@ export default function AdminDashboard() {
           </div>
 
           <TabsContent value="orders">
-            <Card className="border border-gov-border">
+            <Card className="border-0">
               <CardHeader>
                 <CardTitle>All Orders</CardTitle>
               </CardHeader>
@@ -341,11 +340,11 @@ export default function AdminDashboard() {
           <TabsContent value="qr" className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">QR Code Management</h2>
-              <Button className="bg-gov-blue hover:bg-blue-600">
+              <Button>
                 Generate New QR
               </Button>
             </div>
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               QR code management functionality will be implemented here.
             </div>
           </TabsContent>
@@ -353,11 +352,11 @@ export default function AdminDashboard() {
           <TabsContent value="announcements" className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Site Announcements</h2>
-              <Button className="bg-gov-blue hover:bg-blue-600">
+              <Button>
                 New Announcement
               </Button>
             </div>
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               Announcements management functionality will be implemented here.
             </div>
           </TabsContent>
@@ -366,17 +365,17 @@ export default function AdminDashboard() {
             <h2 className="text-xl font-bold mb-6">Contact Submissions</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Name</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Subject</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Subject</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y">
                   {contacts.map((contact: any) => (
                     <tr key={contact.id}>
                       <td className="px-4 py-3">{contact.name}</td>
@@ -392,10 +391,10 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm" className="text-gov-blue hover:text-blue-600">
+                          <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
                             <Eye size={16} />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-gov-green hover:text-green-600">
+                          <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-500">
                             <Edit size={16} />
                           </Button>
                         </div>

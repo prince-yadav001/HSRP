@@ -1,3 +1,4 @@
+
 import type { VehicleCategory } from "@/components/hsrp/VehicleIcon";
 
 export const NAV_LINKS = [
@@ -19,6 +20,23 @@ export const PRICING_DATA: {
   { category: "Only Colour Sticker", price: 200 },
   { category: "Tractor & Trailer", price: 2500 },
 ];
+
+export const vehicleCategoryMap = {
+    bike: "Bike/Scooter",
+    car: "Car/SUV",
+    electric: "Electric Vehicle",
+    sticker: "Only Colour Sticker",
+    heavy: "Tractor & Trailer",
+};
+
+export const vehiclePricing = {
+    bike: 450,
+    car: 1200,
+    electric: 800,
+    sticker: 200,
+    heavy: 2500,
+};
+
 
 export const FAQ_DATA = [
   {

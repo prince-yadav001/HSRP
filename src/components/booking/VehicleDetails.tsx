@@ -85,7 +85,6 @@ export default function VehicleDetails({ onNext, onPrevious, initialData }: Vehi
               placeholder="e.g., DL 01 AA 1234"
               value={formData.vehicleRegistrationNumber}
               onChange={(e) => handleInputChange('vehicleRegistrationNumber', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
             />
           </div>
 
@@ -96,7 +95,6 @@ export default function VehicleDetails({ onNext, onPrevious, initialData }: Vehi
               placeholder="Enter engine number"
               value={formData.engineNumber}
               onChange={(e) => handleInputChange('engineNumber', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
             />
           </div>
 
@@ -107,7 +105,6 @@ export default function VehicleDetails({ onNext, onPrevious, initialData }: Vehi
               placeholder="Enter chassis number"
               value={formData.chassisNumber}
               onChange={(e) => handleInputChange('chassisNumber', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
             />
           </div>
 
@@ -136,7 +133,6 @@ export default function VehicleDetails({ onNext, onPrevious, initialData }: Vehi
               placeholder="Enter vehicle model"
               value={formData.vehicleModel}
               onChange={(e) => handleInputChange('vehicleModel', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
             />
           </div>
 
@@ -160,15 +156,15 @@ export default function VehicleDetails({ onNext, onPrevious, initialData }: Vehi
 
           <div className="md:col-span-2">
             <Label htmlFor="rcDocument">Upload RC Document *</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <Upload className="text-3xl text-gray-400 mb-2 mx-auto" size={48} />
-              <p className="text-gray-600">
+            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+              <Upload className="text-3xl text-muted-foreground mb-2 mx-auto" size={48} />
+              <p className="text-muted-foreground">
                 Drag and drop your RC document or{" "}
-                <label htmlFor="rcDocument" className="text-blue-600 font-semibold cursor-pointer">
+                <label htmlFor="rcDocument" className="text-primary font-semibold cursor-pointer">
                   browse files
                 </label>
               </p>
-              <p className="text-sm text-gray-500 mt-1">Maximum file size: 5MB (PDF, JPG, PNG)</p>
+              <p className="text-sm text-muted-foreground/80 mt-1">Maximum file size: 5MB (PDF, JPG, PNG)</p>
               <input
                 type="file"
                 id="rcDocument"
@@ -189,13 +185,11 @@ export default function VehicleDetails({ onNext, onPrevious, initialData }: Vehi
           <Button
             variant="outline"
             onClick={onPrevious}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-700"
           >
             Previous
           </Button>
           <Button
             onClick={handleNext}
-            className="bg-blue-600 hover:bg-blue-700"
           >
             Next Step
           </Button>

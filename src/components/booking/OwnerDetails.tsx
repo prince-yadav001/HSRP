@@ -95,7 +95,6 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
               placeholder="Enter full name"
               value={formData.ownerFullName}
               onChange={(e) => handleInputChange('ownerFullName', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
             />
           </div>
 
@@ -106,7 +105,6 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
               placeholder="Enter 10-digit mobile number"
               value={formData.ownerMobile}
               onChange={(e) => handleInputChange('ownerMobile', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
               maxLength={10}
             />
           </div>
@@ -119,7 +117,6 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
               placeholder="Enter email address"
               value={formData.ownerEmail}
               onChange={(e) => handleInputChange('ownerEmail', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
             />
           </div>
 
@@ -130,7 +127,6 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
               placeholder="Enter 12-digit Aadhaar number"
               value={formData.ownerAadhaar}
               onChange={(e) => handleInputChange('ownerAadhaar', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
               maxLength={14}
             />
           </div>
@@ -142,7 +138,6 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
               placeholder="Enter complete address"
               value={formData.ownerAddress}
               onChange={(e) => handleInputChange('ownerAddress', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
               rows={3}
             />
           </div>
@@ -175,7 +170,6 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
               placeholder="Enter 6-digit PIN code"
               value={formData.ownerPincode}
               onChange={(e) => handleInputChange('ownerPincode', e.target.value)}
-              className="focus:ring-2 focus:ring-gov-blue"
               maxLength={6}
             />
           </div>
@@ -185,13 +179,11 @@ export default function OwnerDetails({ onNext, onPrevious, initialData }: OwnerD
           <Button
             variant="outline"
             onClick={onPrevious}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-700"
           >
             Previous
           </Button>
           <Button
             onClick={handleNext}
-            className="bg-gov-blue hover:bg-blue-600"
           >
             Proceed to Payment
           </Button>

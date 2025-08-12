@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -5,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Search } from "lucide-react";
-import OrderStatusTimeline from "./OrderStatusTimeline";
+import OrderDetails from "./OrderDetails";
+import ProgressTracker from "./ProgressTracker";
 import { ORDER_STATUSES } from "@/lib/constants";
 
 interface OrderStatus {
@@ -15,14 +17,13 @@ interface OrderStatus {
     status: string;
     date: string;
   }[];
+  [key: string]: any;
 }
 
 const mockOrderStatus = (orderId: string): OrderStatus => {
   const statuses = ORDER_STATUSES.map(s => s.name);
-  // Simple hash to get a consistent "random" index based on Order ID
   const hash = orderId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  // Ensure the status is at least 'Payment Verified' and not beyond 'Delivered'
-  const currentIndex = (hash % (statuses.length - 1)) + 1;
+  const currentIndex = Math.max(1, hash % statuses.length);
 
   const history = statuses.slice(0, currentIndex + 1).map((status, index) => {
       const date = new Date();
@@ -35,12 +36,21 @@ const mockOrderStatus = (orderId: string): OrderStatus => {
     orderId,
     currentStatus: statuses[currentIndex],
     history: history.reverse(),
+    vehicleRegistrationNumber: "DL1C" + orderId.slice(-4),
+    vehicleCategory: "Car/SUV",
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date().toISOString(),
+    amount: 1200,
+    ownerFullName: "Demo User",
+    ownerMobile: "9876543210",
+    ownerEmail: "demo@example.com",
+    status: statuses[currentIndex]
   };
 };
 
 export default function OrderTracker() {
   const [orderId, setOrderId] = useState("");
-  const [status, setStatus] = useState<OrderStatus | null>(null);
+  const [booking, setBooking] = useState<OrderStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,12 +62,12 @@ export default function OrderTracker() {
     }
     setError(null);
     setIsLoading(true);
-    setStatus(null);
+    setBooking(null);
 
     // Simulate API call
     setTimeout(() => {
       if (orderId.toUpperCase().startsWith("HSRP-")) {
-        setStatus(mockOrderStatus(orderId));
+        setBooking(mockOrderStatus(orderId));
       } else {
         setError("Order ID not found. Please check the ID and try again.");
       }
@@ -66,7 +76,7 @@ export default function OrderTracker() {
   };
 
   return (
-    <Card className="max-w-2xl mx-auto">
+    <Card className="max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle className="font-headline">Enter Order ID</CardTitle>
         <CardDescription>
@@ -74,7 +84,7 @@ export default function OrderTracker() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleTrackOrder} className="flex items-center gap-2">
+        <form onSubmit={handleTrackOrder} className="flex items-center gap-2 max-w-md mx-auto">
           <Input
             type="text"
             placeholder="e.g., HSRP-123456789"
@@ -91,16 +101,17 @@ export default function OrderTracker() {
             Track
           </Button>
         </form>
-        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-        {status && (
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold text-center mb-2">
-              Order Status for #{status.orderId}
-            </h3>
-            <p className="text-center text-primary font-bold text-xl mb-6">
-                {status.currentStatus}
-            </p>
-            <OrderStatusTimeline history={status.history} currentStatus={status.currentStatus} />
+
+        {error && <p className="mt-4 text-center text-sm text-destructive">{error}</p>}
+        
+        {booking && (
+          <div className="mt-8 grid md:grid-cols-2 gap-8">
+            <div>
+              <OrderDetails booking={booking} />
+            </div>
+            <div>
+              <ProgressTracker booking={booking} />
+            </div>
           </div>
         )}
       </CardContent>

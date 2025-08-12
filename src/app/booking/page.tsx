@@ -7,11 +7,15 @@ import VehicleSelection from "@/components/booking/VehicleSelection";
 import VehicleDetails from "@/components/booking/VehicleDetails";
 import OwnerDetails from "@/components/booking/OwnerDetails";
 import PaymentSection from "@/components/booking/PaymentSection";
+import { useSearchParams } from "next/navigation";
 
 // Multi-step form state management
 export default function BookingPage() {
-  const [step, setStep] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const searchParams = useSearchParams();
+  const initialCategory = searchParams.get('vehicle') || "";
+
+  const [step, setStep] = useState(initialCategory ? 2 : 1);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [bookingData, setBookingData] = useState({});
 
   const handleNextStep = (data: any) => {
@@ -73,7 +77,7 @@ export default function BookingPage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12 md:px-6 md:py-16">
-      <Card className="border border-gov-border">{renderStep()}</Card>
+      <Card className="border">{renderStep()}</Card>
     </div>
   );
 }

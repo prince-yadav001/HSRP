@@ -8,28 +8,13 @@ import { Upload, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
+import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
 
 interface PaymentSectionProps {
   onPrevious: () => void;
   bookingData: any;
   selectedCategory: string;
 }
-
-const vehicleCategoryMap = {
-    bike: "Bike/Scooter",
-    car: "Four Wheeler",
-    electric: "Electric Vehicle",
-    sticker: "Only Sticker",
-    heavy: "Heavy Vehicle",
-};
-
-const vehiclePricing = {
-    bike: 450,
-    car: 1200,
-    electric: 800,
-    sticker: 200,
-    heavy: 2500,
-};
 
 export default function PaymentSection({ onPrevious, bookingData, selectedCategory }: PaymentSectionProps) {
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
@@ -86,24 +71,23 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
             <Check className="text-white" size={32} />
           </div>
           <h2 className="text-2xl font-bold text-green-600 mb-4">Booking Successful!</h2>
-          <p className="text-gray-600 mb-6">Your HSRP booking has been submitted successfully.</p>
-          <div className="bg-gray-100 p-4 rounded-lg mb-6">
-            <p className="text-sm text-gray-600 mb-2">Your Order ID:</p>
-            <p className="text-xl font-bold text-blue-600">{orderId}</p>
+          <p className="text-muted-foreground mb-6">Your HSRP booking has been submitted successfully.</p>
+          <div className="bg-muted p-4 rounded-lg mb-6">
+            <p className="text-sm text-muted-foreground mb-2">Your Order ID:</p>
+            <p className="text-xl font-bold text-primary">{orderId}</p>
           </div>
-          <div className="space-y-2 mb-6 text-sm text-gray-600">
+          <div className="space-y-2 mb-6 text-sm text-muted-foreground">
             <p>• You will receive SMS and email confirmation shortly</p>
             <p>• Track your order status using the Order ID above</p>
             <p>• Expected delivery: 7-10 working days</p>
           </div>
           <div className="space-x-4">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
+            <Button asChild>
               <Link href='/tracking'>Track Order</Link>
             </Button>
             <Button
               variant="outline"
               onClick={() => window.location.reload()}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-700"
             >
               New Booking
             </Button>
@@ -123,7 +107,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           {/* Order Summary */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-muted/50 p-4 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span>Vehicle Category:</span>
                 <span className="font-semibold">
@@ -142,7 +126,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
                 <span>GST (18%):</span>
                 <span className="font-semibold">₹{gst}</span>
               </div>
-              <div className="border-t border-gray-300 pt-2 mt-2">
+              <div className="border-t pt-2 mt-2">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold">Total Amount:</span>
                   <span className="text-lg font-bold text-green-600">₹{totalAmount}</span>
@@ -155,7 +139,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           <div>
             <h3 className="text-lg font-semibold mb-4">Payment Method</h3>
             <div className="text-center">
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-4">
+              <div className="bg-white border rounded-lg p-6 mb-4">
                  <Image
                     src="https://placehold.co/300x300.png"
                     alt="QR Code for Payment"
@@ -164,16 +148,16 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
                     className="rounded-lg shadow-md mx-auto"
                     data-ai-hint="qr code"
                   />
-                <p className="text-sm text-gray-600 mt-2 mb-2">Scan QR code to pay</p>
+                <p className="text-sm text-muted-foreground mt-2 mb-2">Scan QR code to pay</p>
                 <p className="text-lg font-bold text-green-600">₹{totalAmount}</p>
               </div>
               
               <div className="space-y-4">
-                <p className="text-sm text-gray-600">After payment, upload payment proof below:</p>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <Upload className="text-2xl text-gray-400 mb-2 mx-auto" size={32} />
-                  <p className="text-sm text-gray-600 mb-2">Upload payment screenshot</p>
-                  <Label htmlFor="paymentProof" className="text-blue-600 font-semibold cursor-pointer">
+                <p className="text-sm text-muted-foreground">After payment, upload payment proof below:</p>
+                <div className="border-2 border-dashed rounded-lg p-4">
+                  <Upload className="text-2xl text-muted-foreground mb-2 mx-auto" size={32} />
+                  <p className="text-sm text-muted-foreground mb-2">Upload payment screenshot</p>
+                  <Label htmlFor="paymentProof" className="text-primary font-semibold cursor-pointer">
                     Choose File
                   </Label>
                   <Input
@@ -198,7 +182,6 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           <Button
             variant="outline"
             onClick={onPrevious}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-700"
           >
             Previous
           </Button>
