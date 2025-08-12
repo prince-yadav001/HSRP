@@ -6,7 +6,7 @@ import {
   type VerifyPaymentProofInput,
 } from "@/ai/flows/verify-payment-proof";
 import { db, storage } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { z } from "zod";
 
@@ -20,27 +20,42 @@ export async function handlePaymentVerification(
   input: VerifyPaymentProofInput
 ) {
   try {
+    console.log("Starting AI Verification for order:", input.orderId);
     const validatedInput = ActionInputSchema.parse(input);
     const result = await verifyPaymentProof(validatedInput);
-
-    // This part runs in the background and doesn't block the user.
-    // Here you could update the order status in Firestore based on verification.
-    // For now, we'll just log the result.
     console.log("AI Verification Result:", result);
 
-    // Example of updating Firestore (optional, can be done here or in another process)
-    // if (result.isVerified) {
-    //   const q = query(collection(db, "bookings"), where("orderId", "==", input.orderId));
-    //   const querySnapshot = await getDocs(q);
-    //   if (!querySnapshot.empty) {
-    //     const docRef = querySnapshot.docs[0].ref;
-    //     await updateDoc(docRef, { status: "payment_verified", updatedAt: serverTimestamp() });
-    //   }
-    // }
+    if (result.isVerified) {
+      console.log(`Payment verified for ${input.orderId}. Updating status.`);
+      const q = query(collection(db, "bookings"), where("orderId", "==", input.orderId));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const docRef = querySnapshot.docs[0].ref;
+        await updateDoc(docRef, { 
+            status: "payment_verified", 
+            updatedAt: serverTimestamp(),
+            verificationReason: result.reason 
+        });
+        console.log(`Status updated for ${input.orderId}`);
+      } else {
+         console.log(`Order ${input.orderId} not found in database.`);
+      }
+    } else {
+        console.log(`Payment not verified for ${input.orderId}. Reason: ${result.reason}`);
+        const q = query(collection(db, "bookings"), where("orderId", "==", input.orderId));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const docRef = querySnapshot.docs[0].ref;
+            await updateDoc(docRef, { 
+                verificationReason: `Verification failed: ${result.reason}`,
+                updatedAt: serverTimestamp(),
+            });
+        }
+    }
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Verification failed:", error);
+    console.error("Verification background process failed:", error);
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred.";
     return {
@@ -70,18 +85,19 @@ export async function createBookingAndVerifyPayment(input: z.infer<typeof Create
       ...bookingData,
       vehicleCategory: selectedCategory,
       amount: totalAmount,
-      status: 'pending', // Status is pending until AI verification
-      createdAt: new Date(), // Use current date, Firestore will convert it
-      updatedAt: new Date(), // Use current date
-      paymentProof: '', // Will be updated after upload
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      paymentProof: '', 
+      verificationReason: 'Awaiting AI verification'
     };
 
     const docRef = await addDoc(collection(db, "bookings"), newBooking);
 
-    // 2. Upload payment proof to Firebase Storage in the background (don't await)
+    // 2. Start background tasks: upload payment proof and trigger AI verification
     const uploadAndUpdate = async () => {
       try {
-        const storageRef = ref(storage, `payment_proofs/${newOrderId}_${Date.now()}`);
+        const storageRef = ref(storage, `payment_proofs/${newOrderId}.png`);
         const uploadResult = await uploadString(storageRef, paymentProofDataUri, 'data_url');
         const paymentProofUrl = await getDownloadURL(uploadResult.ref);
 
@@ -100,11 +116,18 @@ export async function createBookingAndVerifyPayment(input: z.infer<typeof Create
         });
 
       } catch (uploadError) {
-        console.error("Error during upload/verification:", uploadError);
+        console.error("Error during background upload/verification:", uploadError);
+        // Optionally, update the booking status to indicate an error
+        const bookingDocRef = doc(db, "bookings", docRef.id);
+        await updateDoc(bookingDocRef, {
+            status: "upload_failed",
+            verificationReason: "Failed to upload or verify payment proof.",
+            updatedAt: serverTimestamp(),
+        });
       }
     };
     
-    uploadAndUpdate(); // Fire and forget
+    uploadAndUpdate(); // Fire and forget, don't await
 
     return { success: true, orderId: newOrderId };
 
