@@ -1,79 +1,68 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Search } from "lucide-react";
 import OrderDetails from "./OrderDetails";
 import ProgressTracker from "./ProgressTracker";
-import { ORDER_STATUSES } from "@/lib/constants";
 
 interface OrderStatus {
   orderId: string;
-  currentStatus: string;
-  history: {
-    status: string;
-    date: string;
-  }[];
+  status: string;
   [key: string]: any;
 }
 
-const mockOrderStatus = (orderId: string): OrderStatus => {
-  const statuses = ORDER_STATUSES.map(s => s.name);
-  const hash = orderId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const currentIndex = Math.max(1, hash % statuses.length);
-
-  const history = statuses.slice(0, currentIndex + 1).map((status, index) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (currentIndex - index));
-      date.setHours(date.getHours() - index * 3);
-      return { status, date: date.toISOString() };
-  });
-
-  return {
-    orderId,
-    currentStatus: statuses[currentIndex],
-    history: history.reverse(),
-    vehicleRegistrationNumber: "DL1C" + orderId.slice(-4),
-    vehicleCategory: "Car/SUV",
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-    amount: 1200,
-    ownerFullName: "Demo User",
-    ownerMobile: "9876543210",
-    ownerEmail: "demo@example.com",
-    status: statuses[currentIndex]
-  };
-};
-
-export default function OrderTracker() {
+const OrderTrackerContent = () => {
+  const searchParams = useSearchParams();
   const [orderId, setOrderId] = useState("");
   const [booking, setBooking] = useState<OrderStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleTrackOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderId.trim()) {
-        setError("Please enter a valid Order ID.");
-        return;
+  useEffect(() => {
+    const urlOrderId = searchParams.get('orderId');
+    if (urlOrderId) {
+      setOrderId(urlOrderId);
+      trackOrder(urlOrderId);
+    }
+  }, [searchParams]);
+
+  const trackOrder = (id: string) => {
+    if (!id.trim()) {
+      setError("Please enter a valid Order ID.");
+      return;
     }
     setError(null);
     setIsLoading(true);
     setBooking(null);
 
-    // Simulate API call
     setTimeout(() => {
-      if (orderId.toUpperCase().startsWith("HSRP-")) {
-        setBooking(mockOrderStatus(orderId));
-      } else {
-        setError("Order ID not found. Please check the ID and try again.");
+      try {
+        const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+        const foundBooking = allBookings.find((b: any) => b.orderId === id.trim());
+        
+        if (foundBooking) {
+          setBooking(foundBooking);
+        } else {
+          setError("Order ID not found. Please check the ID and try again.");
+        }
+      } catch (error) {
+        console.error("Could not load bookings from localStorage", error);
+        setError("An error occurred while fetching your order.");
       }
       setIsLoading(false);
-    }, 1500);
+    }, 1000);
   };
+  
+  const handleTrackOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    trackOrder(orderId);
+  };
+
 
   return (
     <Card className="max-w-4xl mx-auto">
@@ -116,5 +105,14 @@ export default function OrderTracker() {
         )}
       </CardContent>
     </Card>
-  );
+  )
+}
+
+
+export default function OrderTracker() {
+  return (
+    <Suspense fallback={<div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>}>
+      <OrderTrackerContent />
+    </Suspense>
+  )
 }

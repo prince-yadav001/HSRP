@@ -1,4 +1,6 @@
 
+"use client";
+
 import { useState } from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,12 +57,34 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
     }
 
     setIsPending(true);
+
+    // Simulate API call and save to localStorage
     setTimeout(() => {
-        setOrderId(`HSRP-${Date.now()}`);
+        const newOrderId = `HSRP-${Date.now()}`;
+        const newBooking = {
+            id: newOrderId,
+            orderId: newOrderId,
+            ...bookingData,
+            vehicleCategory: selectedCategory,
+            amount: totalAmount,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            paymentProof: 'https://placehold.co/400x300.png', // Placeholder for now
+        };
+
+        // Save to localStorage
+        try {
+            const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+            localStorage.setItem('bookings', JSON.stringify([...existingBookings, newBooking]));
+        } catch (error) {
+            console.error("Could not save booking to localStorage", error);
+        }
+        
+        setOrderId(newOrderId);
         setShowSuccess(true);
         setIsPending(false);
     }, 1500)
-
   };
 
   if (showSuccess) {
@@ -83,7 +107,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           </div>
           <div className="space-x-4">
             <Button asChild>
-              <Link href='/tracking'>Track Order</Link>
+              <Link href={`/tracking?orderId=${orderId}`}>Track Order</Link>
             </Button>
             <Button
               variant="outline"

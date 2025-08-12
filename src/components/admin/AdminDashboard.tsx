@@ -1,5 +1,7 @@
 
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +11,6 @@ import {
   CheckCircle,
   IndianRupee,
   Eye,
-  Edit,
   QrCode,
   Megaphone,
   MessageSquare,
@@ -32,7 +33,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Define the possible status options
 const statusOptions = [
   { value: "pending", label: "Pending" },
   { value: "payment_verified", label: "Payment Verified" },
@@ -43,28 +43,10 @@ const statusOptions = [
   { value: "delivered", label: "Delivered" },
 ];
 
-// Helper function to get a user-friendly label from status
 const getStatusLabel = (status: string) => {
   const option = statusOptions.find(option => option.value === status);
-  return option ? option.label : status.replace('_', ' ');
+  return option ? option.label : status.replace(/_/g, ' ');
 };
-
-const bookings = [
-    {
-        id: '1',
-        orderId: 'HSRP-12345',
-        vehicleRegistrationNumber: 'DL1CAB1234',
-        ownerFullName: 'Ramesh Kumar',
-        amount: 450,
-        status: 'in_production',
-        createdAt: new Date().toISOString(),
-        paymentProof: 'https://placehold.co/400x300.png',
-        ownerMobile: '9876543210',
-        ownerEmail: 'ramesh@example.com',
-        ownerAddress: '123, Main Street, Delhi',
-        vehicleCategory: 'Bike/Scooter'
-    }
-];
 
 const contacts = [
     {
@@ -80,14 +62,36 @@ const contacts = [
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("orders");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [bookings, setBookings] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load bookings from localStorage on component mount
+    try {
+      const storedBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      setBookings(storedBookings.reverse()); // Show newest first
+    } catch (error) {
+      console.error("Could not load bookings from localStorage", error);
+      setBookings([]);
+    }
+  }, []);
+
+  const handleStatusChange = (bookingId: string, newStatus: string) => {
+    const updatedBookings = bookings.map(b => 
+      b.id === bookingId ? { ...b, status: newStatus, updatedAt: new Date().toISOString() } : b
+    );
+    setBookings(updatedBookings);
+    try {
+      // We need to reverse it back for storing to keep the order consistent
+      localStorage.setItem('bookings', JSON.stringify(updatedBookings.reverse()));
+    } catch (error) {
+      console.error("Could not save updated bookings to localStorage", error);
+    }
+  };
   
-  // Calculate stats
   const totalOrders = bookings.length;
-  const pendingOrders = bookings.filter((b: any) =>
-    ['pending', 'payment_verified', 'in_production', 'quality_check', 'ready_for_dispatch', 'out_for_delivery'].includes(b.status)
-  ).length;
+  const pendingOrders = bookings.filter((b: any) => b.status !== 'delivered').length;
   const completedOrders = bookings.filter((b: any) => b.status === 'delivered').length;
-  const totalRevenue = bookings.reduce((sum: number, b: any) => sum + b.amount, 0);
+  const totalRevenue = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
@@ -220,7 +224,7 @@ export default function AdminDashboard() {
                               </Badge>
                               <Select
                                 value={booking.status}
-                                onValueChange={(value) => console.log(value)}
+                                onValueChange={(value) => handleStatusChange(booking.id, value)}
                               >
                                 <SelectTrigger className="w-full h-8 text-xs">
                                   <SelectValue />
@@ -252,7 +256,7 @@ export default function AdminDashboard() {
                                   <DialogHeader>
                                     <DialogTitle>Order Details - {booking.orderId}</DialogTitle>
                                   </DialogHeader>
-                                  {selectedBooking && (
+                                  {selectedBooking && selectedBooking.id === booking.id && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                       <div>
                                         <h3 className="font-semibold mb-3">Order Information</h3>

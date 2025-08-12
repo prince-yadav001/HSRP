@@ -1,3 +1,6 @@
+
+"use client";
+
 import OrderTracker from "@/components/hsrp/OrderTracker";
 
 export default function TrackingPage() {
