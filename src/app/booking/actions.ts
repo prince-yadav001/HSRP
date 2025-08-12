@@ -1,3 +1,4 @@
+
 "use server";
 
 import {
@@ -5,7 +6,7 @@ import {
   type VerifyPaymentProofInput,
 } from "@/ai/flows/verify-payment-proof";
 import { db, storage } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { z } from "zod";
 
@@ -85,7 +86,8 @@ export async function createBookingAndVerifyPayment(input: z.infer<typeof Create
         const paymentProofUrl = await getDownloadURL(uploadResult.ref);
 
         // Update the document with the storage URL
-        await db.collection("bookings").doc(docRef.id).update({
+        const bookingDocRef = doc(db, "bookings", docRef.id);
+        await updateDoc(bookingDocRef, {
             paymentProof: paymentProofUrl,
             updatedAt: serverTimestamp(),
         });
