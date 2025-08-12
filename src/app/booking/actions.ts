@@ -71,8 +71,8 @@ export async function createBookingAndVerifyPayment(input: z.infer<typeof Create
       vehicleCategory: selectedCategory,
       amount: totalAmount,
       status: 'pending', // Status is pending until AI verification
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: new Date(), // Use current date, Firestore will convert it
+      updatedAt: new Date(), // Use current date
       paymentProof: '', // Will be updated after upload
     };
 
