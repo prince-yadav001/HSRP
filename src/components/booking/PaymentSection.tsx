@@ -11,9 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
 import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
-import { db, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { createBookingAndVerifyPayment } from "@/app/booking/actions";
 
 interface PaymentSectionProps {
   onPrevious: () => void;
@@ -21,8 +19,18 @@ interface PaymentSectionProps {
   selectedCategory: string;
 }
 
+// Helper to convert file to Data URI
+const toDataURL = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+
 export default function PaymentSection({ onPrevious, bookingData, selectedCategory }: PaymentSectionProps) {
-  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
   const { toast } = useToast();
@@ -37,7 +45,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({
           title: "File too large",
           description: "Please select a file smaller than 5MB",
@@ -45,12 +53,12 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
         });
         return;
       }
-      setPaymentProof(file);
+      setPaymentProofFile(file);
     }
   };
 
   const handleCompleteBooking = async () => {
-    if (!paymentProof) {
+    if (!paymentProofFile) {
       toast({
         title: "Payment proof required",
         description: "Please upload payment proof to complete booking",
@@ -62,28 +70,25 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
     setIsPending(true);
 
     try {
-      // 1. Upload payment proof to Firebase Storage
-      const storageRef = ref(storage, `payment_proofs/${Date.now()}_${paymentProof.name}`);
-      const uploadResult = await uploadBytes(storageRef, paymentProof);
-      const paymentProofUrl = await getDownloadURL(uploadResult.ref);
+      const paymentProofDataUri = await toDataURL(paymentProofFile);
 
-      // 2. Save booking data to Firestore
-      const newOrderId = `HSRP-${Date.now()}`;
-      const newBooking = {
-        orderId: newOrderId,
-        ...bookingData,
-        vehicleCategory: selectedCategory,
-        amount: totalAmount,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        paymentProof: paymentProofUrl,
-      };
+      const result = await createBookingAndVerifyPayment({
+        bookingData,
+        selectedCategory,
+        totalAmount,
+        paymentProofDataUri,
+      });
 
-      const docRef = await addDoc(collection(db, "bookings"), newBooking);
-      
-      setOrderId(newOrderId); // Use the generated one, not from Firestore doc id
-      setShowSuccess(true);
+      if (result.success && result.orderId) {
+        setOrderId(result.orderId);
+        setShowSuccess(true);
+      } else {
+        toast({
+          title: "Booking Failed",
+          description: result.error || "An unknown error occurred.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Booking failed:", error);
       toast({
@@ -103,16 +108,16 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check className="text-white" size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-green-600 mb-4">Booking Successful!</h2>
-          <p className="text-muted-foreground mb-6">Your HSRP booking has been submitted successfully.</p>
+          <h2 className="text-2xl font-bold text-green-600 mb-4">Booking Submitted!</h2>
+          <p className="text-muted-foreground mb-6">Your HSRP booking has been received and is being processed.</p>
           <div className="bg-muted p-4 rounded-lg mb-6">
             <p className="text-sm text-muted-foreground mb-2">Your Order ID:</p>
             <p className="text-xl font-bold text-primary">{orderId}</p>
           </div>
           <div className="space-y-2 mb-6 text-sm text-muted-foreground">
-            <p>• You will receive SMS and email confirmation shortly</p>
-            <p>• Track your order status using the Order ID above</p>
-            <p>• Expected delivery: 7-10 working days</p>
+            <p>• Payment verification is in progress.</p>
+            <p>• Track your order status using the Order ID above.</p>
+            <p>• Expected delivery: 7-10 working days.</p>
           </div>
           <div className="space-x-4">
             <Button asChild>
@@ -200,9 +205,9 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
                     accept="image/*"
                     onChange={handleFileChange}
                   />
-                  {paymentProof && (
+                  {paymentProofFile && (
                     <p className="text-sm text-green-600 mt-2">
-                      Selected: {paymentProof.name}
+                      Selected: {paymentProofFile.name}
                     </p>
                   )}
                 </div>
@@ -215,12 +220,13 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
           <Button
             variant="outline"
             onClick={onPrevious}
+            disabled={isPending}
           >
             Previous
           </Button>
           <Button
             onClick={handleCompleteBooking}
-            disabled={isPending}
+            disabled={isPending || !paymentProofFile}
             className="bg-green-500 hover:bg-green-600"
           >
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2" size={16} />}
