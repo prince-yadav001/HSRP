@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Menu, X, Home, Plus, Search, Settings, HelpCircle, Users, Phone, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,10 +75,10 @@ export default function Header() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] p-0">
+                 <SheetHeader className="p-6 pb-0">
+                    <SheetTitle>Menu</SheetTitle>
+                 </SheetHeader>
                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-xl font-bold text-foreground">Menu</h2>
-                    </div>
                     <nav className="flex flex-col space-y-2">
                         {navigation.map((item) => {
                         const Icon = item.icon;
