@@ -15,7 +15,8 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
   const [password, setPassword] = useState("");
   const { toast } = useToast();
 
-  const handleLogin = () => {
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
     // Simple authentication - in production, this would be a proper login system
     if (username === "admin" && password === "admin123") {
       onLogin();
@@ -39,7 +40,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
           <CardTitle className="text-xl text-center">Admin Login</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <Label htmlFor="username">Username</Label>
               <Input
@@ -62,12 +63,12 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
               />
             </div>
             <Button
-              onClick={handleLogin}
+              type="submit"
               className="w-full bg-gov-blue hover:bg-blue-600"
             >
               Login
             </Button>
-          </div>
+          </form>
           <div className="mt-4 text-center text-sm text-gray-600">
             <p>Demo credentials: admin / admin123</p>
           </div>

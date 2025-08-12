@@ -17,7 +17,8 @@ import {
   FileImage,
   CreditCard,
   Edit,
-  Loader2
+  Loader2,
+  LogOut
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -64,7 +65,11 @@ const contacts = [
     }
 ];
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  onLogout: () => void;
+}
+
+export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState("orders");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
@@ -156,6 +161,13 @@ export default function AdminDashboard() {
 
   return (
     <div>
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
+            <Button variant="outline" onClick={onLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+            </Button>
+        </div>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card className="border">
