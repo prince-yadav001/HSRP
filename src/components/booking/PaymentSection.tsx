@@ -11,23 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
 import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
-import { createBooking, handlePaymentUploadAndVerification } from "@/app/booking/actions";
+import { createBooking, updateBookingWithPayment } from "@/app/booking/actions";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 interface PaymentSectionProps {
   onPrevious: () => void;
   bookingData: any;
   selectedCategory: string;
 }
-
-// Helper to convert file to Data URI
-const toDataURL = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
 
 export default function PaymentSection({ onPrevious, bookingData, selectedCategory }: PaymentSectionProps) {
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
@@ -86,33 +79,39 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
         setIsPending(false);
         return;
       }
+      
+      const newOrderId = bookingResult.orderId;
+      const newBookingId = bookingResult.bookingId;
 
-      setOrderId(bookingResult.orderId);
-      setShowSuccess(true); // Show success UI immediately
+      // Step 2: Upload file directly to Firebase Storage from client
+      const storageRef = ref(storage, `payment_proofs/${newOrderId}.png`);
+      const uploadResult = await uploadBytes(storageRef, paymentProofFile);
+      const paymentProofUrl = await getDownloadURL(uploadResult.ref);
 
-      // Step 2: Handle file upload and AI verification in the background
-      const paymentProofDataUri = await toDataURL(paymentProofFile);
-      handlePaymentUploadAndVerification({
-          paymentProofDataUri,
-          totalAmount,
-          orderId: bookingResult.orderId,
-          bookingId: bookingResult.bookingId
-      }).then(uploadResult => {
-          if(!uploadResult.success) {
-              console.error("Background upload failed:", uploadResult.error);
-              // Optional: You could use a websocket or other mechanism to notify
-              // the user of this background failure, but for now we just log it.
-          }
+      // Step 3: Update the booking with the payment proof URL
+      const updateResult = await updateBookingWithPayment({
+          paymentProofUrl,
+          orderId: newOrderId,
+          bookingId: newBookingId,
+          totalAmount
       });
+
+      if (!updateResult.success) {
+          throw new Error(updateResult.error || "Failed to update booking with payment proof.");
+      }
+
+      setOrderId(newOrderId);
+      setShowSuccess(true); 
 
     } catch (error) {
       console.error("Booking failed:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({
         title: "Booking Failed",
-        description: "There was an error submitting your booking. Please try again.",
+        description: `There was an error submitting your booking: ${errorMessage}`,
         variant: "destructive"
       });
-      setShowSuccess(false); // Hide success UI if it failed
+      setShowSuccess(false);
     } finally {
       setIsPending(false);
     }
