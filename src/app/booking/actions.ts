@@ -3,11 +3,9 @@
 
 import {
   verifyPaymentProof,
-  type VerifyPaymentProofInput,
 } from "@/ai/flows/verify-payment-proof";
-import { db, storage } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
 import { z } from "zod";
 
 
@@ -52,11 +50,40 @@ const UpdateBookingWithPaymentInputSchema = z.object({
     totalAmount: z.number(),
 });
 
+// Separate async function to handle the AI verification in the background.
+async function triggerAiVerification(bookingId: string, paymentProofUrl: string, totalAmount: number, orderId: string) {
+    const bookingDocRef = doc(db, "bookings", bookingId);
+    try {
+        const verificationResult = await verifyPaymentProof({
+            paymentProofDataUri: paymentProofUrl,
+            expectedAmount: totalAmount,
+            orderId: orderId,
+        });
+
+        const finalStatus = verificationResult.isVerified ? "payment_verified" : "payment_rejected";
+        await updateDoc(bookingDocRef, {
+            status: finalStatus,
+            verificationReason: verificationResult.reason,
+            updatedAt: serverTimestamp(),
+        });
+        console.log(`AI verification completed for order ${orderId}. Status: ${finalStatus}`);
+    } catch (aiError) {
+        console.error(`AI verification failed for order ${orderId}:`, aiError);
+        // Update the status to indicate a failure in the AI verification process
+        await updateDoc(bookingDocRef, {
+            status: 'payment_verification_failed',
+            verificationReason: 'The AI verification process encountered an error.',
+            updatedAt: serverTimestamp(),
+        });
+    }
+}
+
 export async function updateBookingWithPayment(input: z.infer<typeof UpdateBookingWithPaymentInputSchema>) {
     const { paymentProofUrl, orderId, bookingId, totalAmount } = UpdateBookingWithPaymentInputSchema.parse(input);
     
     try {
         const bookingDocRef = doc(db, "bookings", bookingId);
+        // First, update the booking with the proof and set status to pending verification
         await updateDoc(bookingDocRef, {
             paymentProof: paymentProofUrl,
             status: 'payment_pending_verification',
@@ -65,29 +92,8 @@ export async function updateBookingWithPayment(input: z.infer<typeof UpdateBooki
         });
 
         // Trigger AI verification in the background (fire and forget)
-        // Note: In a production app, this would ideally be a separate, resumable task queue.
-        verifyPaymentProof({
-            paymentProofDataUri: paymentProofUrl,
-            expectedAmount: totalAmount,
-            orderId: orderId,
-        }).then(async (verificationResult) => {
-            const finalStatus = verificationResult.isVerified ? "payment_verified" : "payment_rejected";
-            await updateDoc(bookingDocRef, {
-                status: finalStatus,
-                verificationReason: verificationResult.reason,
-                updatedAt: serverTimestamp(),
-            });
-            console.log(`AI verification completed for order ${orderId}. Status: ${finalStatus}`);
-        }).catch(aiError => {
-            console.error(`AI verification failed for order ${orderId}:`, aiError);
-            // Optionally update the status to indicate a failure in verification
-            updateDoc(bookingDocRef, {
-                status: 'payment_verification_failed',
-                verificationReason: 'The AI verification process encountered an error.',
-                updatedAt: serverTimestamp(),
-            });
-        });
-
+        // This won't be awaited, so the user gets a fast response.
+        triggerAiVerification(bookingId, paymentProofUrl, totalAmount, orderId);
 
         return { success: true };
 
@@ -97,4 +103,3 @@ export async function updateBookingWithPayment(input: z.infer<typeof UpdateBooki
         return { success: false, error: `Failed to update booking. ${errorMessage}` };
     }
 }
-
