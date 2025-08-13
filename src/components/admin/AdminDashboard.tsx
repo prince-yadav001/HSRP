@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +15,6 @@ import {
   Megaphone,
   MessageSquare,
   FileImage,
-  CreditCard,
   Edit,
   Loader2,
   LogOut
@@ -46,6 +45,8 @@ const statusOptions = [
   { value: "ready_for_dispatch", label: "Ready for Dispatch" },
   { value: "out_for_delivery", label: "Out for Delivery" },
   { value: "delivered", label: "Delivered" },
+  { value: "payment_rejected", label: "Payment Rejected" },
+  { value: "payment_verification_failed", label: "Payment Verification Failed" },
 ];
 
 const getStatusLabel = (status: string) => {
@@ -75,49 +76,68 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      setIsLoading(true);
-      try {
-        const result = await getBookings();
-        setBookingsData(result);
-      } catch (error) {
-        console.error("Error fetching bookings:", error);
+  const fetchBookings = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await getBookings();
+      if (result.success) {
+        setBookingsData(result.data || []);
+      } else {
         toast({
           title: "Error",
-          description: "Failed to fetch bookings from the database.",
+          description: result.error || "Failed to fetch bookings.",
           variant: "destructive"
         });
-      } finally {
-        setIsLoading(false);
+        setBookingsData([]);
       }
-    };
-
-    fetchBookings();
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while fetching bookings.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const handleStatusChange = async (bookingId: number, newStatus: string) => {
     const originalBookings = [...bookingsData];
     const updatedBookings = bookingsData.map(b => 
-      b.id === bookingId ? { ...b, status: newStatus } : b
+      b.id === bookingId ? { ...b, status: newStatus, isUpdating: true } : b
     );
     setBookingsData(updatedBookings);
 
     try {
-      await updateBookingStatus({ bookingId, newStatus });
+      const result = await updateBookingStatus({ bookingId, newStatus });
 
-      toast({
-        title: "Success",
-        description: "Order status updated successfully."
-      });
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Order status updated successfully."
+        });
+        await fetchBookings(); // Refresh data from server
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       setBookingsData(originalBookings); // Revert on error
       toast({
-        title: "Error",
-        description: "Failed to update order status.",
+        title: "Error updating status",
+        description: error instanceof Error ? error.message : "An unknown error occurred.",
         variant: "destructive"
       });
+    } finally {
+      const finalBookings = bookingsData.map(b => 
+        b.id === bookingId ? { ...b, isUpdating: false } : b
+      );
+      setBookingsData(finalBookings);
     }
   };
   
@@ -134,14 +154,20 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       quality_check: "bg-purple-100 text-purple-800",
       ready_for_dispatch: "bg-indigo-100 text-indigo-800",
       out_for_delivery: "bg-cyan-100 text-cyan-800",
-      delivered: "bg-green-100 text-green-800"
+      delivered: "bg-green-100 text-green-800",
+      payment_rejected: "bg-red-100 text-red-800",
+      payment_verification_failed: "bg-red-200 text-red-900"
     };
     return colors[status] || "bg-gray-100 text-gray-800";
   };
 
   const formatTimestamp = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    return new Date(timestamp).toLocaleDateString('en-IN');
+    try {
+        return new Date(timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+        return 'Invalid Date';
+    }
   };
 
   return (
@@ -268,7 +294,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <td className="p-2">{booking.ownerFullName}</td>
                           <td className="p-2">₹{booking.amount}</td>
                           <td className="p-2">
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 w-48">
                               <Badge className={getStatusColor(booking.status)}>
                                 {getStatusLabel(booking.status)}
                               </Badge>
@@ -323,6 +349,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                               {getStatusLabel(selectedBooking.status)}
                                             </Badge>
                                           </div>
+                                           <div><strong>AI Reason:</strong> {selectedBooking.verificationReason || 'N/A'}</div>
                                         </div>
                                       </div>
                                       <div>
@@ -356,10 +383,6 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                   )}
                                 </DialogContent>
                               </Dialog>
-                              
-                              <Button size="sm" variant="outline">
-                                <QrCode className="w-4 h-4" />
-                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -445,5 +468,3 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     </div>
   );
 }
-
-    

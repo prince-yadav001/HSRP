@@ -9,10 +9,10 @@ import { z } from "zod";
 export async function getBookings() {
   try {
     const result = await db.select().from(bookings).orderBy(desc(bookings.createdAt));
-    return result;
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching bookings from DB:", error);
-    throw new Error("Failed to fetch bookings.");
+    return { success: false, error: "Failed to fetch bookings." };
   }
 }
 
@@ -31,8 +31,7 @@ export async function updateBookingStatus(input: z.infer<typeof updateBookingSta
     return { success: true };
   } catch (error) {
     console.error("Error updating status in DB:", error);
-    throw new Error("Failed to update status.");
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, error: `Failed to update status. ${errorMessage}` };
   }
 }
-
-    
