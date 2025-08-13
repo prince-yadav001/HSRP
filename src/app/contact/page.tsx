@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState, useFormStatus } from "react-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,7 @@ export default function ContactPage() {
     success: false,
   };
 
-  const [state, formAction] = useFormState(sendContactMessage, initialState);
+  const [state, formAction] = useActionState(sendContactMessage, initialState);
 
   useEffect(() => {
     if (state.message) {
