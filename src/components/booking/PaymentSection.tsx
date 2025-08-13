@@ -13,14 +13,15 @@ import Link from "next/link";
 import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
 import { createBooking, updateBookingWithPayment } from "@/app/booking/actions";
 
-// Mock storage logic. In a real app, this would be a proper storage client.
-async function uploadFile(file: File, bookingId: number): Promise<string> {
-  // This is a mock upload. It doesn't actually upload anywhere.
-  // In a real scenario, you'd use a service like S3, GCS, or a self-hosted solution.
-  console.log(`Uploading file ${file.name} for booking ${bookingId}`);
-  await new Promise(resolve => setTimeout(resolve, 1000)); // simulate network delay
-  // Return a placeholder URL.
-  return `https://placehold.co/400x300.png?text=ProofFor${bookingId}`;
+// In a real app, this would be a proper storage client to upload to S3, GCS, etc.
+// For this demo, we'll simulate an upload and return a placeholder URL.
+async function uploadFile(file: File, orderId: string): Promise<string> {
+  console.log(`Uploading file ${file.name} for order ${orderId}`);
+  // Simulate network delay for upload
+  await new Promise(resolve => setTimeout(resolve, 1500)); 
+  // In a real app, you would get a public URL from your storage service.
+  // Using a placeholder that includes the order ID to simulate uniqueness.
+  return `https://placehold.co/600x400.png?text=ProofFor-${orderId}`;
 }
 
 
@@ -73,7 +74,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
     try {
       // Step 1: Create the booking document to get an ID
       const bookingResult = await createBooking({
-        bookingData,
+        ...bookingData,
         selectedCategory,
         totalAmount,
       });
@@ -92,8 +93,8 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
       const newBookingId = bookingResult.bookingId;
       setOrderId(newOrderId); // Set orderId for success screen
 
-      // Step 2: Upload file. Using a mock function for now.
-      const paymentProofUrl = await uploadFile(paymentProofFile, newBookingId);
+      // Step 2: Upload file.
+      const paymentProofUrl = await uploadFile(paymentProofFile, newOrderId);
 
       // Step 3: Update the booking with the payment proof URL and trigger AI verification
       const updateResult = await updateBookingWithPayment({
@@ -226,6 +227,7 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
                     className="hidden"
                     accept="image/*"
                     onChange={handleFileChange}
+                    required
                   />
                   {paymentProofFile && (
                     <p className="text-sm text-green-600 mt-2">

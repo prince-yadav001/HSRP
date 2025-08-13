@@ -12,7 +12,7 @@ export async function getBookings() {
     return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching bookings from DB:", error);
-    return { success: false, error: "Failed to fetch bookings." };
+    return { success: false, error: "Failed to fetch bookings.", data: [] };
   }
 }
 

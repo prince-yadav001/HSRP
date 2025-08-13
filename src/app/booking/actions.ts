@@ -11,15 +11,38 @@ import { z } from "zod";
 
 
 const CreateBookingInputSchema = z.object({
-  bookingData: z.any(),
+  ownerFullName: z.string().min(1, "Full name is required"),
+  ownerMobile: z.string().regex(/^[6-9]\d{9}$/, "Invalid mobile number"),
+  ownerEmail: z.string().email("Invalid email address"),
+  ownerAadhaar: z.string().regex(/^\d{12}$/, "Invalid Aadhaar number"),
+  ownerAddress: z.string().min(1, "Address is required"),
+  ownerState: z.string().min(1, "State is required"),
+  ownerPincode: z.string().regex(/^\d{6}$/, "Invalid PIN code"),
+  vehicleRegistrationNumber: z.string().min(1, "Vehicle registration number is required"),
+  engineNumber: z.string().min(1, "Engine number is required"),
+  chassisNumber: z.string().min(1, "Chassis number is required"),
+  vehicleMake: z.string().min(1, "Vehicle make is required"),
+  vehicleModel: z.string().min(1, "Vehicle model is required"),
+  manufacturingYear: z.string().min(1, "Manufacturing year is required"),
   selectedCategory: z.string(),
   totalAmount: z.number(),
 });
 
 
 export async function createBooking(input: z.infer<typeof CreateBookingInputSchema>) {
-  const { bookingData, selectedCategory, totalAmount } = CreateBookingInputSchema.parse(input);
+  const validation = CreateBookingInputSchema.safeParse(input);
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: "Invalid input data.",
+      issues: validation.error.issues,
+    };
+  }
+  
+  const { selectedCategory, totalAmount, ...bookingData } = validation.data;
   const newOrderId = `HSRP-${Date.now()}`;
+  
   try {
     const newBooking = {
       orderId: newOrderId,

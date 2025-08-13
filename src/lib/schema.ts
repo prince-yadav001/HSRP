@@ -26,3 +26,11 @@ export const bookings = pgTable('bookings', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
     
+export const contacts = pgTable('contacts', {
+    id: serial('id').primaryKey(),
+    firstName: varchar('first_name', { length: 255 }),
+    lastName: varchar('last_name', { length: 255 }),
+    email: varchar('email', { length: 255 }),
+    message: text('message'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
