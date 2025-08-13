@@ -35,10 +35,8 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { db } from "@/lib/db";
-import { bookings } from "@/lib/schema";
-import { eq, desc } from "drizzle-orm";
 import { useToast } from "@/hooks/use-toast";
+import { getBookings, updateBookingStatus } from "@/app/admin/actions";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -81,7 +79,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const fetchBookings = async () => {
       setIsLoading(true);
       try {
-        const result = await db.select().from(bookings).orderBy(desc(bookings.createdAt));
+        const result = await getBookings();
         setBookingsData(result);
       } catch (error) {
         console.error("Error fetching bookings:", error);
@@ -106,10 +104,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setBookingsData(updatedBookings);
 
     try {
-      await db.update(bookings).set({
-        status: newStatus,
-        updatedAt: new Date()
-      }).where(eq(bookings.id, bookingId));
+      await updateBookingStatus({ bookingId, newStatus });
 
       toast({
         title: "Success",
@@ -450,3 +445,5 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     </div>
   );
 }
+
+    

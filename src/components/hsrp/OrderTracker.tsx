@@ -9,10 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Search, Phone, ChevronRight, List } from "lucide-react";
 import OrderDetails from "./OrderDetails";
 import ProgressTracker from "./ProgressTracker";
-import { db } from "@/lib/db";
-import { bookings } from "@/lib/schema";
-import { eq, desc } from "drizzle-orm";
 import { Badge } from "../ui/badge";
+import { getBookingsByMobile } from "@/app/tracking/actions";
+
 
 interface Order {
   id: number;
@@ -64,10 +63,7 @@ const OrderTrackerContent = () => {
     setSelectedBooking(null);
 
     try {
-      const results = await db.select()
-        .from(bookings)
-        .where(eq(bookings.ownerMobile, mobile.trim()))
-        .orderBy(desc(bookings.createdAt));
+      const results = await getBookingsByMobile(mobile.trim());
       
       if (results.length > 0) {
         setFoundBookings(results as Order[]);
@@ -178,3 +174,5 @@ export default function OrderTracker() {
     </Suspense>
   )
 }
+
+    
