@@ -44,7 +44,7 @@ export async function createBooking(input: z.infer<typeof CreateBookingInputSche
   const newOrderId = `HSRP-${Date.now()}`;
   
   try {
-    const newBooking = {
+    const newBookingData = {
       orderId: newOrderId,
       ...bookingData,
       vehicleCategory: selectedCategory,
@@ -52,13 +52,21 @@ export async function createBooking(input: z.infer<typeof CreateBookingInputSche
       status: 'pending',
       verificationReason: 'Awaiting payment proof upload.'
     };
-    const result = await db.insert(bookings).values(newBooking).returning({ id: bookings.id, orderId: bookings.orderId });
+    
+    // Insert the booking without returning
+    await db.insert(bookings).values(newBookingData);
+    
+    // Fetch the booking we just created using the unique orderId
+    const newBooking = await db.query.bookings.findFirst({
+        where: eq(bookings.orderId, newOrderId),
+    });
 
-    if (result.length === 0) {
-      throw new Error("Booking creation failed, no ID returned.");
+    if (!newBooking) {
+      throw new Error("Booking creation failed, could not find newly created booking.");
     }
 
-    return { success: true, orderId: result[0].orderId, bookingId: result[0].id };
+    return { success: true, orderId: newBooking.orderId, bookingId: newBooking.id };
+
   } catch (error) {
      console.error("Booking creation failed:", error);
      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
