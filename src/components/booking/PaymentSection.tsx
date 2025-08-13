@@ -12,8 +12,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { vehicleCategoryMap, vehiclePricing } from "@/lib/constants";
 import { createBooking, updateBookingWithPayment } from "@/app/booking/actions";
-import { storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+// Mock storage logic. In a real app, this would be a proper storage client.
+async function uploadFile(file: File, bookingId: number): Promise<string> {
+  // This is a mock upload. It doesn't actually upload anywhere.
+  // In a real scenario, you'd use a service like S3, GCS, or a self-hosted solution.
+  console.log(`Uploading file ${file.name} for booking ${bookingId}`);
+  await new Promise(resolve => setTimeout(resolve, 1000)); // simulate network delay
+  // Return a placeholder URL.
+  return `https://placehold.co/400x300.png?text=ProofFor${bookingId}`;
+}
 
 
 interface PaymentSectionProps {
@@ -84,11 +92,8 @@ export default function PaymentSection({ onPrevious, bookingData, selectedCatego
       const newBookingId = bookingResult.bookingId;
       setOrderId(newOrderId); // Set orderId for success screen
 
-      // Step 2: Upload file directly to Firebase Storage from client
-      // The file name is based on the bookingId to ensure uniqueness
-      const storageRef = ref(storage, `payment_proofs/${newBookingId}_${paymentProofFile.name}`);
-      const uploadResult = await uploadBytes(storageRef, paymentProofFile);
-      const paymentProofUrl = await getDownloadURL(uploadResult.ref);
+      // Step 2: Upload file. Using a mock function for now.
+      const paymentProofUrl = await uploadFile(paymentProofFile, newBookingId);
 
       // Step 3: Update the booking with the payment proof URL and trigger AI verification
       const updateResult = await updateBookingWithPayment({

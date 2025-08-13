@@ -35,8 +35,9 @@ import {
   DialogTrigger,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { db } from "@/lib/firebase";
-import { collection, query, getDocs, doc, updateDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import { db } from "@/lib/db";
+import { bookings } from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 import { useToast } from "@/hooks/use-toast";
 
 const statusOptions = [
@@ -72,7 +73,7 @@ interface AdminDashboardProps {
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState("orders");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookingsData, setBookingsData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -80,14 +81,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const fetchBookings = async () => {
       setIsLoading(true);
       try {
-        const q = query(collection(db, "bookings"), orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
-        const bookingsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate().toISOString() // Convert timestamp
-        }));
-        setBookings(bookingsData);
+        const result = await db.select().from(bookings).orderBy(desc(bookings.createdAt));
+        setBookingsData(result);
       } catch (error) {
         console.error("Error fetching bookings:", error);
         toast({
@@ -103,26 +98,26 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     fetchBookings();
   }, [toast]);
 
-  const handleStatusChange = async (bookingId: string, newStatus: string) => {
-    const originalBookings = [...bookings];
-    const updatedBookings = bookings.map(b => 
+  const handleStatusChange = async (bookingId: number, newStatus: string) => {
+    const originalBookings = [...bookingsData];
+    const updatedBookings = bookingsData.map(b => 
       b.id === bookingId ? { ...b, status: newStatus } : b
     );
-    setBookings(updatedBookings);
+    setBookingsData(updatedBookings);
 
     try {
-      const bookingRef = doc(db, "bookings", bookingId);
-      await updateDoc(bookingRef, {
+      await db.update(bookings).set({
         status: newStatus,
-        updatedAt: serverTimestamp()
-      });
+        updatedAt: new Date()
+      }).where(eq(bookings.id, bookingId));
+
       toast({
         title: "Success",
         description: "Order status updated successfully."
       });
     } catch (error) {
       console.error("Error updating status:", error);
-      setBookings(originalBookings); // Revert on error
+      setBookingsData(originalBookings); // Revert on error
       toast({
         title: "Error",
         description: "Failed to update order status.",
@@ -131,10 +126,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   };
   
-  const totalOrders = bookings.length;
-  const pendingOrders = bookings.filter((b: any) => b.status !== 'delivered').length;
-  const completedOrders = bookings.filter((b: any) => b.status === 'delivered').length;
-  const totalRevenue = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
+  const totalOrders = bookingsData.length;
+  const pendingOrders = bookingsData.filter((b: any) => b.status !== 'delivered').length;
+  const completedOrders = bookingsData.filter((b: any) => b.status === 'delivered').length;
+  const totalRevenue = bookingsData.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
@@ -150,13 +145,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const formatTimestamp = (timestamp: any) => {
-    if (timestamp && typeof timestamp.toDate === 'function') {
-      return timestamp.toDate().toLocaleDateString('en-IN');
-    }
-    if (timestamp) {
-      return new Date(timestamp).toLocaleDateString('en-IN');
-    }
-    return 'N/A';
+    if (!timestamp) return 'N/A';
+    return new Date(timestamp).toLocaleDateString('en-IN');
   };
 
   return (
@@ -276,7 +266,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {bookings.map((booking: any) => (
+                      {bookingsData.map((booking: any) => (
                         <tr key={booking.id} className="border-b">
                           <td className="p-2 font-mono text-sm">{booking.orderId}</td>
                           <td className="p-2">{booking.vehicleRegistrationNumber}</td>

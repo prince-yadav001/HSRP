@@ -4,8 +4,9 @@
 import {
   verifyPaymentProof,
 } from "@/ai/flows/verify-payment-proof";
-import { db } from "@/lib/firebase";
-import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/db";
+import { bookings } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 
@@ -26,13 +27,15 @@ export async function createBooking(input: z.infer<typeof CreateBookingInputSche
       vehicleCategory: selectedCategory,
       amount: totalAmount,
       status: 'pending',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      paymentProof: '',
       verificationReason: 'Awaiting payment proof upload.'
     };
-    const docRef = await addDoc(collection(db, "bookings"), newBooking);
-    return { success: true, orderId: newOrderId, bookingId: docRef.id };
+    const result = await db.insert(bookings).values(newBooking).returning({ id: bookings.id, orderId: bookings.orderId });
+
+    if (result.length === 0) {
+      throw new Error("Booking creation failed, no ID returned.");
+    }
+
+    return { success: true, orderId: result[0].orderId, bookingId: result[0].id };
   } catch (error) {
      console.error("Booking creation failed:", error);
      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -46,13 +49,12 @@ export async function createBooking(input: z.infer<typeof CreateBookingInputSche
 const UpdateBookingWithPaymentInputSchema = z.object({
     paymentProofUrl: z.string(),
     orderId: z.string(),
-    bookingId: z.string(),
+    bookingId: z.number(),
     totalAmount: z.number(),
 });
 
 // Separate async function to handle the AI verification in the background.
-async function triggerAiVerification(bookingId: string, paymentProofUrl: string, totalAmount: number, orderId: string) {
-    const bookingDocRef = doc(db, "bookings", bookingId);
+async function triggerAiVerification(bookingId: number, paymentProofUrl: string, totalAmount: number, orderId: string) {
     try {
         const verificationResult = await verifyPaymentProof({
             paymentProofDataUri: paymentProofUrl,
@@ -61,20 +63,21 @@ async function triggerAiVerification(bookingId: string, paymentProofUrl: string,
         });
 
         const finalStatus = verificationResult.isVerified ? "payment_verified" : "payment_rejected";
-        await updateDoc(bookingDocRef, {
+        await db.update(bookings).set({
             status: finalStatus,
             verificationReason: verificationResult.reason,
-            updatedAt: serverTimestamp(),
-        });
+            updatedAt: new Date(),
+        }).where(eq(bookings.id, bookingId));
+
         console.log(`AI verification completed for order ${orderId}. Status: ${finalStatus}`);
     } catch (aiError) {
         console.error(`AI verification failed for order ${orderId}:`, aiError);
         // Update the status to indicate a failure in the AI verification process
-        await updateDoc(bookingDocRef, {
+        await db.update(bookings).set({
             status: 'payment_verification_failed',
             verificationReason: 'The AI verification process encountered an error.',
-            updatedAt: serverTimestamp(),
-        });
+            updatedAt: new Date(),
+        }).where(eq(bookings.id, bookingId));
     }
 }
 
@@ -82,17 +85,15 @@ export async function updateBookingWithPayment(input: z.infer<typeof UpdateBooki
     const { paymentProofUrl, orderId, bookingId, totalAmount } = UpdateBookingWithPaymentInputSchema.parse(input);
     
     try {
-        const bookingDocRef = doc(db, "bookings", bookingId);
         // First, update the booking with the proof and set status to pending verification
-        await updateDoc(bookingDocRef, {
+        await db.update(bookings).set({
             paymentProof: paymentProofUrl,
             status: 'payment_pending_verification',
             verificationReason: 'Payment proof uploaded. Awaiting AI verification.',
-            updatedAt: serverTimestamp(),
-        });
+            updatedAt: new Date(),
+        }).where(eq(bookings.id, bookingId));
 
         // Trigger AI verification in the background (fire and forget)
-        // This won't be awaited, so the user gets a fast response.
         triggerAiVerification(bookingId, paymentProofUrl, totalAmount, orderId);
 
         return { success: true };

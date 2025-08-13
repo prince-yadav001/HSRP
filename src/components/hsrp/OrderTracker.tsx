@@ -9,20 +9,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Search, Phone, ChevronRight, List } from "lucide-react";
 import OrderDetails from "./OrderDetails";
 import ProgressTracker from "./ProgressTracker";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp, orderBy } from "firebase/firestore";
+import { db } from "@/lib/db";
+import { bookings } from "@/lib/schema";
+import { eq, desc } from "drizzle-orm";
 import { Badge } from "../ui/badge";
 
 interface Order {
-  id: string;
+  id: number;
   orderId: string;
-  status: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  status: string | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
   [key: string]: any;
 }
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status: string | null) => {
+    if (!status) return "Unknown";
     const labels: { [key: string]: string } = {
       pending: "Pending",
       payment_verified: "Payment Verified",
@@ -38,7 +40,7 @@ const getStatusLabel = (status: string) => {
 const OrderTrackerContent = () => {
   const searchParams = useSearchParams();
   const [mobileNumber, setMobileNumber] = useState("");
-  const [bookings, setBookings] = useState<Order[]>([]);
+  const [foundBookings, setFoundBookings] = useState<Order[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,20 +60,17 @@ const OrderTrackerContent = () => {
     }
     setError(null);
     setIsLoading(true);
-    setBookings([]);
+    setFoundBookings([]);
     setSelectedBooking(null);
 
     try {
-      const q = query(
-        collection(db, "bookings"), 
-        where("ownerMobile", "==", mobile.trim()),
-        orderBy("createdAt", "desc")
-      );
-      const querySnapshot = await getDocs(q);
+      const results = await db.select()
+        .from(bookings)
+        .where(eq(bookings.ownerMobile, mobile.trim()))
+        .orderBy(desc(bookings.createdAt));
       
-      if (!querySnapshot.empty) {
-        const foundBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-        setBookings(foundBookings);
+      if (results.length > 0) {
+        setFoundBookings(results as Order[]);
       } else {
         setError("No orders found for this mobile number. Please check the number and try again.");
       }
@@ -129,11 +128,11 @@ const OrderTrackerContent = () => {
 
         {error && <p className="mt-4 text-center text-sm text-destructive">{error}</p>}
         
-        {bookings.length > 0 && (
+        {foundBookings.length > 0 && (
             <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-4 flex items-center"><List className="mr-2 h-5 w-5" /> Your Orders ({bookings.length})</h3>
+                <h3 className="text-lg font-semibold mb-4 flex items-center"><List className="mr-2 h-5 w-5" /> Your Orders ({foundBookings.length})</h3>
                 <div className="border rounded-md">
-                    {bookings.map(booking => (
+                    {foundBookings.map(booking => (
                         <div key={booking.id} className="border-b last:border-b-0">
                              <div 
                                 className="flex justify-between items-center p-4 cursor-pointer hover:bg-muted/50"
