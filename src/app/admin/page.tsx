@@ -1,50 +1,35 @@
 
-"use client";
-
-import { useState, useEffect } from "react";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminLogin from "@/components/admin/AdminLogin";
+import { getBookings } from "./actions";
 
-export default function AdminPage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+// Always make sure that the page is dynamic and not static
+export const dynamic = 'force-dynamic'
 
-  useEffect(() => {
-    // Check sessionStorage for login state when component mounts
-    const loggedInStatus = sessionStorage.getItem("isAdminLoggedIn");
-    if (loggedInStatus === "true") {
-      setIsLoggedIn(true);
+export default async function AdminPage() {
+  // This is a server component, so we can fetch data directly
+  // We're wrapping this in a try/catch in case the DB connection fails
+  let initialBookings = [];
+  try {
+    const bookingsResult = await getBookings();
+    if (bookingsResult.success) {
+      initialBookings = bookingsResult.data;
+    } else {
+      console.error("Failed to fetch initial bookings:", bookingsResult.error);
     }
-    setIsLoading(false);
-  }, []);
-
-  const handleLogin = () => {
-    // Set login state and also in sessionStorage
-    sessionStorage.setItem("isAdminLoggedIn", "true");
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    // Clear login state and from sessionStorage
-    sessionStorage.removeItem("isAdminLoggedIn");
-    setIsLoggedIn(false);
-  };
-
-  if (isLoading) {
-      return (
-          <div className="container mx-auto px-4 py-12 md:px-6 md:py-16 text-center">
-                <p>Loading...</p>
-          </div>
-      )
+  } catch (error) {
+    console.error("Error fetching bookings on server:", error);
   }
 
   return (
     <div className="container mx-auto px-4 py-12 md:px-6 md:py-16">
-      {isLoggedIn ? (
-        <AdminDashboard onLogout={handleLogout} />
-      ) : (
-        <AdminLogin onLogin={handleLogin} />
-      )}
+      {/* 
+        The login state will be managed on the client side, 
+        but we pass the initial data from the server.
+        This gives us the best of both worlds: server-side rendering for the initial data
+        and client-side interactivity.
+      */}
+      <AdminDashboard initialBookings={initialBookings} />
     </div>
   );
 }

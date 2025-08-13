@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { getBookings, updateBookingStatus } from "@/app/admin/actions";
+import AdminLogin from "./AdminLogin";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -66,15 +67,34 @@ const contacts = [
 ];
 
 interface AdminDashboardProps {
-  onLogout: () => void;
+  initialBookings: any[];
 }
 
-export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
+export default function AdminDashboard({ initialBookings }: AdminDashboardProps) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // No longer loading on mount
   const [activeTab, setActiveTab] = useState("orders");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [bookingsData, setBookingsData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [bookingsData, setBookingsData] = useState<any[]>(initialBookings);
   const { toast } = useToast();
+
+   useEffect(() => {
+    const loggedInStatus = sessionStorage.getItem("isAdminLoggedIn");
+    if (loggedInStatus === "true") {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
+  const handleLogin = () => {
+    sessionStorage.setItem("isAdminLoggedIn", "true");
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("isAdminLoggedIn");
+    setIsLoggedIn(false);
+  };
+
 
   const fetchBookings = useCallback(async () => {
     setIsLoading(true);
@@ -102,16 +122,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   }, [toast]);
 
-  useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
-
   const handleStatusChange = async (bookingId: number, newStatus: string) => {
     const originalBookings = [...bookingsData];
-    const updatedBookings = bookingsData.map(b => 
-      b.id === bookingId ? { ...b, status: newStatus, isUpdating: true } : b
+    const optimisticBookings = bookingsData.map(b => 
+      b.id === bookingId ? { ...b, status: newStatus } : b
     );
-    setBookingsData(updatedBookings);
+    setBookingsData(optimisticBookings);
 
     try {
       const result = await updateBookingStatus({ bookingId, newStatus });
@@ -121,23 +137,18 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           title: "Success",
           description: "Order status updated successfully."
         });
-        await fetchBookings(); // Refresh data from server
+        // Optionally re-fetch to ensure data consistency
+        await fetchBookings(); 
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      console.error("Error updating status:", error);
       setBookingsData(originalBookings); // Revert on error
       toast({
         title: "Error updating status",
         description: error instanceof Error ? error.message : "An unknown error occurred.",
         variant: "destructive"
       });
-    } finally {
-      const finalBookings = bookingsData.map(b => 
-        b.id === bookingId ? { ...b, isUpdating: false } : b
-      );
-      setBookingsData(finalBookings);
     }
   };
   
@@ -170,11 +181,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   };
 
+  if (!isLoggedIn) {
+      return <AdminLogin onLogin={handleLogin} />;
+  }
+
   return (
     <div>
         <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
-            <Button variant="outline" onClick={onLogout}>
+            <Button variant="outline" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             Logout
             </Button>
