@@ -23,7 +23,6 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 204 64% 62%;
-    --radius: 0.5rem;
   }
 
   .dark {
@@ -55,5 +54,13 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  #loading-bar {
+    @apply pointer-events-none fixed left-0 top-0 z-[9999] h-1 w-full bg-primary/80 shadow-lg shadow-primary transition-transform duration-500 ease-out;
+    transform-origin: left;
+    transform: scaleX(0);
   }
 }
