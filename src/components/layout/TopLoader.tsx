@@ -1,51 +1,55 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import NProgress from "nprogress";
 
 function Loader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setLoading(false);
+    NProgress.configure({ showSpinner: false });
+
+    const handleStart = () => NProgress.start();
+    const handleStop = () => NProgress.done();
+
+    // We need to use a mutation observer because the Next.js router
+    // updates the document title after the route change is complete.
+    // We can use this to determine when to stop the progress bar.
+    const observer = new MutationObserver(() => {
+        if (document.title) {
+            handleStop();
+        }
+    });
+
+    // Start the progress bar on initial load.
+    handleStart();
+
+    observer.observe(document.querySelector('title')!, {
+        childList: true,
+    });
+    
+    // Stop the progress bar on initial load.
+    handleStop();
+    
+    return () => {
+        observer.disconnect();
+    };
+
+  }, []);
+
+  useEffect(() => {
+    NProgress.done();
   }, [pathname, searchParams]);
 
-
-  useEffect(() => {
-    const handleAnchorClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      const anchor = target.closest("a");
-
-      if (
-        anchor &&
-        anchor.href &&
-        anchor.target !== "_blank" &&
-        anchor.href.startsWith(window.location.origin) &&
-        !anchor.href.includes('#') && // Do not trigger for hash links
-        anchor.href !== window.location.href
-      ) {
-         setLoading(true);
-      }
-    };
-
-    document.addEventListener("click", handleAnchorClick);
-
-    return () => {
-      document.removeEventListener("click", handleAnchorClick);
-    };
-  }, [pathname]);
-
-  const loadingBarStyle = {
-    transform: `scaleX(${loading ? 0.8 : 0})`,
-    transition: `transform ${loading ? "10s" : "0.5s"} cubic-bezier(0.1, 0.9, 0, 1)`,
-  };
-
-  return <div id="loading-bar" style={loadingBarStyle}></div>;
+  return null;
 }
 
-
 export default function TopLoader() {
-    return <Suspense><Loader /></Suspense>;
+  return (
+    <Suspense>
+      <Loader />
+    </Suspense>
+  );
 }
