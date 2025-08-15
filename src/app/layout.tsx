@@ -4,7 +4,6 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import TopLoader from "@/components/layout/TopLoader";
 
 const ptSans = PT_Sans({
   subsets: ["latin"],
@@ -35,7 +34,6 @@ export default function RootLayout({
       <body
         className={`font-body antialiased ${ptSans.variable}`}
       >
-        <TopLoader />
         <div className="flex min-h-screen flex-col">
           <Header />
           <main className="flex-1">{children}</main>
