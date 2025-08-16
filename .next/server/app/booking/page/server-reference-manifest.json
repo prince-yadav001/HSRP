@@ -1,0 +1,27 @@
+{
+  "node": {
+    "4052ab6733676dd6ec71105b170626f6ca0dcc452b": {
+      "workers": {
+        "app/booking/page": {
+          "moduleId": "[project]/.next-internal/server/app/booking/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/booking/actions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/booking/page": "action-browser"
+      }
+    },
+    "40555d556b53b0cda4ba3f836ad5f0f249037d6e35": {
+      "workers": {
+        "app/booking/page": {
+          "moduleId": "[project]/.next-internal/server/app/booking/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/booking/actions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/booking/page": "action-browser"
+      }
+    }
+  },
+  "edge": {}
+}
